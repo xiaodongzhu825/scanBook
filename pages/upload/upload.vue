@@ -514,9 +514,85 @@
 								<scroll-view class="content-scroll" scroll-y="true">
 									<view class="form-section">
 										<view class="section-title">
-											<text class="title-text">其他设置</text>
+											<text class="title-text">定价策略</text>
 										</view>
-										<text class="section-desc">更多设置即将上线</text>
+										<text class="section-desc">设置自动定价规则，影响比价结果的参考价格计算</text>
+										
+										<!-- 模式切换 -->
+										<view class="mode-tabs">
+											<view class="mode-tab" :class="{ active: priceMode === 'lowest' }" @click="priceMode = 'lowest'">
+												<text class="mode-tab-text">最低价</text>
+											</view>
+											<view class="mode-tab" :class="{ active: priceMode === 'average' }" @click="priceMode = 'average'">
+												<text class="mode-tab-text">均价</text>
+											</view>
+										</view>
+										
+										<!-- 最低价模式 -->
+										<view v-if="priceMode === 'lowest'">
+											<view class="config-field">
+												<text class="config-label">以最低价为参照物</text>
+												<text class="config-desc">选择第几条数据作为参考价</text>
+												<view class="picker-wrap">
+													<picker :value="lowestRank - 1" :range="lowestOptions" @change="e => lowestRank = e.detail.value + 1">
+														<view class="picker-btn">
+															<text class="picker-btn-text">第 {{ lowestRank }} 条</text>
+															<text class="picker-arrow">›</text>
+														</view>
+													</picker>
+												</view>
+											</view>
+											<view class="config-field">
+												<text class="config-label">运费</text>
+												<text class="config-desc">每单运费金额</text>
+												<input class="num-input-field" v-model="shippingFee" type="digit" placeholder="0.00" @input="onDecimalInput('shippingFee', $event)" />
+											</view>
+											<view class="config-field">
+												<text class="config-label">占位降价</text>
+												<text class="config-desc">在参考价基础上降低的金额</text>
+												<input class="num-input-field" v-model="priceDiscount" type="digit" placeholder="0.00" @input="onDecimalInput('priceDiscount', $event)" />
+											</view>
+											<view class="config-field">
+												<text class="config-label">最低书价（不含运费）</text>
+												<text class="config-desc">设置后的价格不低于此金额</text>
+												<input class="num-input-field" v-model="minBookPrice" type="digit" placeholder="0.00" @input="onDecimalInput('minBookPrice', $event)" />
+											</view>
+										</view>
+										
+										<!-- 均价模式 -->
+										<view v-if="priceMode === 'average'">
+											<view class="config-field">
+												<text class="config-label">以总价最低的N个价格平均值为参考物</text>
+												<text class="config-desc">选择前几条数据取平均值</text>
+												<view class="picker-wrap">
+													<picker :value="averageCount - 2" :range="averageOptions" @change="e => averageCount = e.detail.value + 2">
+														<view class="picker-btn">
+															<text class="picker-btn-text">前 {{ averageCount }} 条</text>
+															<text class="picker-arrow">›</text>
+														</view>
+													</picker>
+												</view>
+											</view>
+											<view class="config-field">
+												<text class="config-label">运费</text>
+												<text class="config-desc">每单运费金额</text>
+												<input class="num-input-field" v-model="shippingFee" type="digit" placeholder="0.00" @input="onDecimalInput('shippingFee', $event)" />
+											</view>
+											<view class="config-field">
+												<text class="config-label">占位降价</text>
+												<text class="config-desc">在参考价基础上降低的金额</text>
+												<input class="num-input-field" v-model="priceDiscount" type="digit" placeholder="0.00" @input="onDecimalInput('priceDiscount', $event)" />
+											</view>
+											<view class="config-field">
+												<text class="config-label">最低书价（不含运费）</text>
+												<text class="config-desc">设置后的价格不低于此金额</text>
+												<input class="num-input-field" v-model="minBookPrice" type="digit" placeholder="0.00" @input="onDecimalInput('minBookPrice', $event)" />
+											</view>
+										</view>
+										
+										<view class="save-config-btn" @click="savePriceConfig">
+											<text>保存设置</text>
+										</view>
 									</view>
 								</scroll-view>
 							</swiper-item>
@@ -721,7 +797,15 @@ export default {
 			rememberPassword: false,
 			blockedList: '',
 			kongfzToken: '',
-			savedAccountList: []
+			savedAccountList: [],
+			
+			// 定价策略
+			priceMode: 'lowest',  // lowest | average
+			lowestRank: 1,
+			averageCount: 2,
+			shippingFee: 0,
+			priceDiscount: 0,
+			minBookPrice: 0
 		}
 	},
 
@@ -748,6 +832,8 @@ export default {
 		}
 		// 加载已保存账号列表
 		this.loadSavedAccounts()
+		// 恢复定价策略配置
+		this.loadPriceConfig()
 	},
 
 	computed: {
@@ -759,6 +845,16 @@ export default {
 				list.sort((a, b) => parseFloat(a.bookPrice || 0) - parseFloat(b.bookPrice || 0))
 			}
 			return list
+		},
+		lowestOptions() {
+			const arr = []
+			for (let i = 1; i <= 12; i++) arr.push(i)
+			return arr
+		},
+		averageOptions() {
+			const arr = []
+			for (let i = 2; i <= 12; i++) arr.push(i)
+			return arr
 		}
 	},
 
@@ -1143,6 +1239,52 @@ export default {
 					}
 				}
 			})
+		},
+
+		// 小数输入处理（保留两位小数）
+		onDecimalInput(field, event) {
+			let val = event.detail.value
+			val = val.replace(/[^\d.]/g, '')
+			const parts = val.split('.')
+			if (parts.length > 2) {
+				val = parts[0] + '.' + parts.slice(1).join('')
+			}
+			if (parts.length === 2 && parts[1].length > 2) {
+				val = parts[0] + '.' + parts[1].substring(0, 2)
+			}
+			this[field] = val
+		},
+
+		// 加载定价策略配置
+		loadPriceConfig() {
+			try {
+				const saved = uni.getStorageSync('price_config')
+				if (saved) {
+					const cfg = JSON.parse(saved)
+					this.priceMode = cfg.priceMode || 'lowest'
+					this.lowestRank = cfg.lowestRank || 1
+					this.averageCount = cfg.averageCount || 2
+					this.shippingFee = cfg.shippingFee || 0
+					this.priceDiscount = cfg.priceDiscount || 0
+					this.minBookPrice = cfg.minBookPrice || 0
+				}
+			} catch (e) {
+				console.error('加载定价配置失败:', e)
+			}
+		},
+
+		// 保存定价策略配置
+		savePriceConfig() {
+			const cfg = {
+				priceMode: this.priceMode,
+				lowestRank: Number(this.lowestRank) || 1,
+				averageCount: Number(this.averageCount) || 2,
+				shippingFee: Number(this.shippingFee) || 0,
+				priceDiscount: Number(this.priceDiscount) || 0,
+				minBookPrice: Number(this.minBookPrice) || 0
+			}
+			uni.setStorageSync('price_config', JSON.stringify(cfg))
+			uni.showToast({ title: '设置已保存', icon: 'success' })
 		}
 	}
 }
@@ -2065,6 +2207,128 @@ export default {
   background-color: #a0cfff;
   color: #ffffff;
   opacity: 0.6;
+}
+
+/* ========== 定价策略 ========== */
+.mode-tabs {
+  display: flex;
+  background: #f0f2f5;
+  border-radius: 8rpx;
+  padding: 4rpx;
+  margin-bottom: 24rpx;
+}
+
+.mode-tab {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  border-radius: 6rpx;
+  font-size: 26rpx;
+  color: #606266;
+  transition: all 0.2s;
+}
+
+.mode-tab.active {
+  background: #ffffff;
+  color: #409eff;
+  font-weight: 600;
+  box-shadow: 0 1rpx 4rpx rgba(0,0,0,0.06);
+}
+
+.mode-tab-text {
+  font-size: 26rpx;
+}
+
+.config-field {
+  margin-bottom: 24rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid #f0f2f5;
+}
+
+.config-field:last-of-type {
+  border-bottom: none;
+  margin-bottom: 16rpx;
+}
+
+.config-label {
+  display: block;
+  font-size: 26rpx;
+  color: #303133;
+  font-weight: 500;
+  margin-bottom: 4rpx;
+}
+
+.config-desc {
+  display: block;
+  font-size: 22rpx;
+  color: #909399;
+  margin-bottom: 12rpx;
+}
+
+.picker-wrap {
+  display: flex;
+}
+
+.picker-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 2rpx solid #dcdfe6;
+  border-radius: 8rpx;
+  padding: 0 16rpx;
+  height: 72rpx;
+  min-width: 200rpx;
+  box-sizing: border-box;
+}
+
+.picker-btn:active {
+  border-color: #409eff;
+}
+
+.picker-btn-text {
+  font-size: 28rpx;
+  color: #303133;
+}
+
+.num-input-field {
+  background: #ffffff;
+  border: 2rpx solid #dcdfe6;
+  border-radius: 8rpx;
+  padding: 0 16rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 28rpx;
+  color: #303133;
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.num-input-field:focus {
+  border-color: #409eff;
+  outline: none;
+}
+
+.num-input-field::placeholder {
+  color: #c0c4cc;
+}
+
+.save-config-btn {
+  background: #409eff;
+  color: #ffffff;
+  text-align: center;
+  padding: 22rpx 0;
+  border-radius: 10rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  margin-top: 12rpx;
+  box-shadow: 0 2rpx 8rpx rgba(64,158,255,0.2);
+}
+
+.save-config-btn:active {
+  opacity: 0.85;
 }
 
 /* ========== 设置子Tabs ========== */
