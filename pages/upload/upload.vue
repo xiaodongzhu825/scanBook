@@ -1123,7 +1123,6 @@ export default {
 			try {
 				const res = await getWarehouseList({ status: 1, page: 1, page_size: 100 })
 				console.log('仓库列表原始响应:', JSON.stringify(res))
-				// 兼容多种响应格式
 				const list = res.data?.list || res.data?.records || res.list || res.records || []
 				if (list.length > 0) {
 					this.popupWarehouseList = list
@@ -1134,6 +1133,20 @@ export default {
 				}
 			} catch (e) {
 				console.error('加载仓库失败:', e)
+				const errMsg = e.message || String(e)
+				if (errMsg.includes('NEED_LOGIN')) {
+					const displayMsg = errMsg.replace('NEED_LOGIN:', '')
+					uni.showModal({
+						title: '登录已过期',
+						content: displayMsg,
+						confirmText: '去登录',
+						success: (res) => {
+							if (res.confirm) {
+								uni.navigateTo({ url: '/pages/login/login' })
+							}
+						}
+					})
+				}
 			} finally {
 				this.popupLoading = false
 			}
@@ -1167,6 +1180,20 @@ export default {
 				}
 			} catch (e) {
 				console.error('加载货位失败:', e)
+				const errMsg = e.message || String(e)
+				if (errMsg.includes('NEED_LOGIN')) {
+					const displayMsg = errMsg.replace('NEED_LOGIN:', '')
+					uni.showModal({
+						title: '登录已过期',
+						content: displayMsg,
+						confirmText: '去登录',
+						success: (res) => {
+							if (res.confirm) {
+								uni.navigateTo({ url: '/pages/login/login' })
+							}
+						}
+					})
+				}
 				this.popupLocationList = this.popupAllLocationList
 				this.popupLocHasMore = false
 			} finally {
