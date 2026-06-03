@@ -169,16 +169,16 @@
 									<text class="stat-value">{{ marketData.onSale }}</text>
 								</view>
 								<view class="stat-item">
-									<text class="stat-label">旧书</text>
-									<text class="stat-value">{{ marketData.old }}</text>
+									<text class="stat-label">最低价</text>
+									<text class="stat-value min-price">{{ marketData.minPrice || '-' }}</text>
 								</view>
 								<view class="stat-item">
-									<text class="stat-label">新书</text>
-									<text class="stat-value">{{ marketData.new }}</text>
+									<text class="stat-label">均价</text>
+									<text class="stat-value avg-price">{{ marketData.avgPrice || '-' }}</text>
 								</view>
 								<view class="stat-item">
-									<text class="stat-label">已售</text>
-									<text class="stat-value">{{ marketData.sold }}</text>
+									<text class="stat-label">不同店铺</text>
+									<text class="stat-value">{{ marketData.shops || 0 }}</text>
 								</view>
 							</view>
 						</view>
@@ -615,7 +615,7 @@
 		<view class="filter-popup" v-if="showFilterPopup" @click="showFilterPopup = false">
 			<view class="popup-content" @click.stop>
 				<view class="popup-header">
-					<text class="popup-title">筛选条件</text>
+					<text class="popup-title">筛选在售商品</text>
 					<text class="popup-close" @click="showFilterPopup = false">✕</text>
 				</view>
 				<view class="popup-body">
@@ -625,9 +625,37 @@
 							<view 
 								class="tag-item" 
 								v-for="(item, index) in conditionList" 
-								:key="index"
+								:key="'c'+index"
 								:class="{ active: filterCondition === item }"
-								@click="filterCondition = item"
+								@click="filterCondition = filterCondition === item ? '' : item"
+							>
+								<text class="tag-text">{{ item }}</text>
+							</view>
+						</view>
+					</view>
+					<view class="filter-group" v-if="filterPublishers.length > 0">
+						<text class="group-title">出版社</text>
+						<view class="tag-list">
+							<view 
+								class="tag-item" 
+								v-for="(item, index) in filterPublishers" 
+								:key="'p'+index"
+								:class="{ active: filterPress === item }"
+								@click="filterPress = filterPress === item ? '' : item"
+							>
+								<text class="tag-text">{{ item }}</text>
+							</view>
+						</view>
+					</view>
+					<view class="filter-group" v-if="filterAuthors.length > 0">
+						<text class="group-title">作者</text>
+						<view class="tag-list">
+							<view 
+								class="tag-item" 
+								v-for="(item, index) in filterAuthors" 
+								:key="'a'+index"
+								:class="{ active: filterAuthor === item }"
+								@click="filterAuthor = filterAuthor === item ? '' : item"
 							>
 								<text class="tag-text">{{ item }}</text>
 							</view>
@@ -746,7 +774,7 @@ export default {
 			photoList: [],
 			isbnSelectedArea: '',
 			isbnWarehouseData: null,
-			marketData: { onSale: 0, old: 0, new: 0, sold: 0 },
+			marketData: { onSale: 0, minPrice: '-', avgPrice: '-', shops: 0 },
 			productList: [],
 			compareType: 'isbn',
 			sortBy: 'total',
@@ -778,6 +806,8 @@ export default {
 			// 筛选
 			showFilterPopup: false,
 			filterCondition: '',
+			filterPress: '',
+			filterAuthor: '',
 			
 			// 仓库弹窗
 			showWarehousePicker: false,
@@ -847,13 +877,38 @@ export default {
 
 	computed: {
 		sortedProductList() {
-			const list = [...this.productList]
+			let list = [...this.productList]
+			// 筛选
+			if (this.filterCondition) {
+				list = list.filter(item => item.condition === this.filterCondition)
+			}
+			if (this.filterPress) {
+				list = list.filter(item => item.shopName === this.filterPress)
+			}
+			if (this.filterAuthor) {
+				list = list.filter(item => item.author === this.filterAuthor)
+			}
+			// 排序
 			if (this.sortBy === 'total') {
-				list.sort((a, b) => parseFloat(a.totalPrice || 0) - parseFloat(b.totalPrice || 0))
+				list.sort((a, b) => parseFloat(a.totalPrice) - parseFloat(b.totalPrice))
 			} else if (this.sortBy === 'book') {
 				list.sort((a, b) => parseFloat(a.bookPrice || 0) - parseFloat(b.bookPrice || 0))
 			}
 			return list
+		},
+		filterPublishers() {
+			const set = new Set()
+			this.productList.slice(0, 12).forEach(item => {
+				if (item.shopName) set.add(item.shopName)
+			})
+			return Array.from(set)
+		},
+		filterAuthors() {
+			const set = new Set()
+			this.productList.slice(0, 12).forEach(item => {
+				if (item.author) set.add(item.author)
+			})
+			return Array.from(set)
 		},
 		lowestOptions() {
 			const arr = []
@@ -941,20 +996,13 @@ export default {
 			searchProducts(this.isbn, { phpsessid }).then(data => {
 				this.isLoading = false
 				if (data && data.total > 0) {
-					// 市场统计
-					this.marketData = {
-						onSale: data.total || 0,
-						old: 0,
-						new: 0,
-						sold: 0
-					}
 					// 在售商品列表（最多12条）
 					const list = (data.list || []).slice(0, 12)
 					this.productList = list.map(item => ({
 						image: item.imgBigUrl || '',
-						totalPrice: item.priceText || '',
-						bookPrice: (item.priceText || '0').replace(/[^\d.]/g, ''),
-						shippingFee: item.postage && item.postage.shippingList && item.postage.shippingList.length > 0 ? item.postage.shippingList[0].shippingFee || '0' : '0',
+						totalPrice: parseFloat((item.priceText || '0').replace(/[^\d.]/g, '')),
+						bookPrice: parseFloat((item.priceText || '0').replace(/[^\d.]/g, '')),
+						shippingFee: item.postage && item.postage.shippingList && item.postage.shippingList.length > 0 ? parseFloat(item.postage.shippingList[0].shippingFee || 0) : 0,
 						condition: item.qualityText || '',
 						shopName: item.shopName || '',
 						bookName: item.title || '',
@@ -962,8 +1010,19 @@ export default {
 						pubDate: item.pubDateText || '',
 						bookId: item.id || ''
 					}))
+					// 计算市场竞争数据
+					const prices = this.productList.map(p => p.totalPrice).filter(p => p && p > 0)
+					const avg = prices.length > 0 ? (prices.reduce((a, b) => a + b, 0) / prices.length) : 0
+					const min = prices.length > 0 ? Math.min(...prices) : 0
+					const shopSet = new Set(list.map(item => item.shopName).filter(Boolean))
+					this.marketData = {
+						onSale: data.total || 0,
+						minPrice: min > 0 ? '¥' + min.toFixed(2) : '-',
+						avgPrice: avg > 0 ? '¥' + avg.toFixed(2) : '-',
+						shops: shopSet.size || 0
+					}
 				} else {
-					this.marketData = { onSale: 0, old: 0, new: 0, sold: 0 }
+					this.marketData = { onSale: 0, minPrice: '-', avgPrice: '-', shops: 0 }
 				}
 			}).catch(() => {
 				this.isLoading = false
@@ -1178,6 +1237,8 @@ export default {
 
 		resetFilter() {
 			this.filterCondition = ''
+			this.filterPress = ''
+			this.filterAuthor = ''
 		},
 
 		applyFilter() {
@@ -1735,7 +1796,7 @@ export default {
   background-color: #fafafa;
   border: 2rpx solid #ebeef5;
   border-radius: 8rpx;
-  padding: 18rpx 8rpx;
+  padding: 14rpx 6rpx;
   display: flex;
   justify-content: space-around;
 }
@@ -1744,18 +1805,26 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6rpx;
+  gap: 4rpx;
 }
 
 .stat-label {
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: #909399;
 }
 
 .stat-value {
-  font-size: 32rpx;
+  font-size: 28rpx;
   color: #303133;
   font-weight: 600;
+}
+
+.stat-value.min-price {
+  color: #f56c6c;
+}
+
+.stat-value.avg-price {
+  color: #e6a23c;
 }
 
 /* ========== 在售商品 ========== */
@@ -1847,42 +1916,44 @@ export default {
 .product-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10rpx;
-  margin-top: 14rpx;
+  gap: 8rpx;
+  margin-top: 10rpx;
 }
 
 .grid-item {
   background-color: #fafafa;
   border: 2rpx solid #ebeef5;
   border-radius: 8rpx;
-  padding: 10rpx;
+  padding: 6rpx;
+  overflow: hidden;
 }
 
 .grid-image {
   width: 100%;
-  height: 150rpx;
-  border-radius: 6rpx;
+  height: 120rpx;
+  border-radius: 4rpx;
 }
 
 .grid-total-price {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #f56c6c;
   font-weight: 600;
   display: block;
-  margin-top: 4rpx;
   text-align: center;
-  width: 100%;
+  margin-top: 2rpx;
+  line-height: 1.4;
 }
 
 .grid-price-detail {
-  font-size: 18rpx;
+  font-size: 16rpx;
   color: #909399;
   display: block;
   text-align: center;
+  line-height: 1.3;
 }
 
 .grid-book-name {
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: #303133;
   font-weight: 500;
   display: block;
@@ -1891,10 +1962,11 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.3;
 }
 
 .grid-author {
-  font-size: 20rpx;
+  font-size: 18rpx;
   color: #909399;
   display: block;
   text-align: center;
@@ -1902,24 +1974,26 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-top: 2rpx;
+  line-height: 1.3;
 }
 
 .grid-condition {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #606266;
   display: block;
-  margin-top: 4rpx;
   text-align: center;
+  line-height: 1.3;
 }
 
 .grid-shop {
-  font-size: 20rpx;
+  font-size: 18rpx;
   color: #909399;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
+  line-height: 1.3;
 }
 
 .no-data {
