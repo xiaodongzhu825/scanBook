@@ -210,10 +210,13 @@
 							<!-- 商品列表 -->
 							<view class="product-grid" v-else>
 								<view class="grid-item" v-for="(item, index) in sortedProductList.slice(0, 12)" :key="index">
+									<image class="grid-image" :src="item.image" mode="aspectFill" @click="previewProductImage(index)" v-if="item.image"></image>
 									<text class="grid-book-name">{{ item.bookName || '未知书名' }}</text>
 									<text class="grid-author">{{ item.author || item.shopName || '' }}</text>
 									<text class="grid-total-price">{{ item.totalPrice }}</text>
-									<text class="grid-condition">{{ item.condition || item.pubDate || '' }}</text>
+									<text class="grid-price-detail" v-if="item.shippingFee && item.shippingFee > 0">运{{ item.shippingFee }}</text>
+									<text class="grid-condition">{{ item.condition || '' }}</text>
+									<text class="grid-shop">{{ item.shopName || '' }}</text>
 								</view>
 								
 								<!-- 无数据提示 -->
@@ -934,7 +937,8 @@ export default {
 			})
 
 			// 2. 搜索孔夫子 - 获取在售商品信息
-			searchProducts(this.isbn).then(data => {
+			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
+			searchProducts(this.isbn, { phpsessid }).then(data => {
 				this.isLoading = false
 				if (data && data.total > 0) {
 					// 市场统计
@@ -947,16 +951,16 @@ export default {
 					// 在售商品列表（最多12条）
 					const list = (data.list || []).slice(0, 12)
 					this.productList = list.map(item => ({
-						image: '',
-						totalPrice: item.prodNum + '本在售',
-						bookPrice: '',
-						shippingFee: '',
-						condition: item.binding || '',
-						shopName: item.press || '',
-						bookName: item.bookName || '',
+						image: item.imgBigUrl || '',
+						totalPrice: item.priceText || '',
+						bookPrice: (item.priceText || '0').replace(/[^\d.]/g, ''),
+						shippingFee: item.postage && item.postage.shippingList && item.postage.shippingList.length > 0 ? item.postage.shippingList[0].shippingFee || '0' : '0',
+						condition: item.qualityText || '',
+						shopName: item.shopName || '',
+						bookName: item.title || '',
 						author: item.author || '',
-						pubDate: item.pubDate || '',
-						bookId: item.bookId || ''
+						pubDate: item.pubDateText || '',
+						bookId: item.id || ''
 					}))
 				} else {
 					this.marketData = { onSale: 0, old: 0, new: 0, sold: 0 }
@@ -1868,6 +1872,13 @@ export default {
   margin-top: 4rpx;
   text-align: center;
   width: 100%;
+}
+
+.grid-price-detail {
+  font-size: 18rpx;
+  color: #909399;
+  display: block;
+  text-align: center;
 }
 
 .grid-book-name {

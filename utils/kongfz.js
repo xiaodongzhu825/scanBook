@@ -146,30 +146,39 @@ export default {
 }
 
 /**
- * 搜索孔夫子商品（公开搜索API，无需登录）
+ * 搜索孔夫子在售商品（需要登录Cookie）
  * @param {string} keyword ISBN或书名
- * @param {number} page 页码
+ * @param {object} options {phpsessid, page}
  * @returns {Promise<{total: number, list: Array}>}
+ * list中每项: {id, title, author, press, priceText, imgBigUrl, shopName, qualityText, pubDateText, postage}
  */
-export function searchProducts(keyword, page = 1) {
+export function searchProducts(keyword, options = {}) {
+	const { phpsessid = '', page = 1 } = options
 	return new Promise((resolve, reject) => {
 		uni.request({
-			url: `https://search.kongfz.com/pc-gw/search-web/client/pc/product/keyword/isbnList?dataType=0&keyword=${encodeURIComponent(keyword)}&page=${page}`,
+			url: 'https://search.kongfz.com/pc-gw/search-web/client/pc/product/keyword/list',
 			method: 'GET',
+			data: {
+				dataType: 0,
+				keyword: keyword,
+				page: page,
+				userArea: '13003000000'
+			},
 			header: {
-				'Accept': 'application/json, text/plain, */*',
-				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
-				'Referer': `https://search.kongfz.com/product/?keyword=${encodeURIComponent(keyword)}`,
-				'sec-ch-ua': '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
-				'sec-ch-ua-mobile': '?0',
-				'sec-ch-ua-platform': '"Windows"'
+				'Cookie': phpsessid ? `PHPSESSID=${phpsessid}` : ''
 			},
 			success: (res) => {
-				console.log('孔夫子搜索响应:', res.statusCode, res.data)
-				if (res.statusCode === 200 && res.data && res.data.status === 1 && res.data.data) {
-					resolve(res.data.data)
-				} else if (res.statusCode === 200 && res.data && res.data.data) {
-					resolve(res.data.data)
+				console.log('孔夫子在售搜索响应:', res.statusCode, res.data)
+				if (res.statusCode === 200 && res.data && res.data.status === 1) {
+					const itemResp = res.data.data && res.data.data.itemResponse
+					if (itemResp) {
+						resolve({
+							total: itemResp.total || 0,
+							list: itemResp.list || []
+						})
+					} else {
+						resolve({ total: 0, list: [] })
+					}
 				} else {
 					resolve({ total: 0, list: [] })
 				}
