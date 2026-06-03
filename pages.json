@@ -1,0 +1,65 @@
+{
+	"pages": [
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/entry/entry",
+			"style": {
+				"navigationBarTitleText": "功能入口"
+			}
+		},
+		{
+			"path": "pages/warehouse/warehouse",
+			"style": {
+				"navigationBarTitleText": "选择仓库"
+			}
+		},
+		{
+			"path": "pages/home/home",
+			"style": {
+				"navigationBarTitleText": "入库助手"
+			}
+		},
+		{
+			"path": "pages/order/order",
+			"style": {
+				"navigationBarTitleText": "仓库订单"
+			}
+		},
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "首页"
+			}
+		},
+		{
+			"path": "pages/vip/vip",
+			"style": {
+				"navigationBarTitleText": "会员等级选择"
+			}
+		},
+		{
+			"path": "pages/record/record",
+			"style": {
+				"navigationBarTitleText": "上书记录"
+			}
+		},
+		{
+			"path": "pages/upload/upload",
+			"style": {
+				"navigationBarTitleText": "图书上传"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "入库助手",
+		"navigationBarBackgroundColor": "#ffffff",
+		"backgroundColor": "#f5f7fa"
+	},
+	"uniIdRouter": {}
+}
