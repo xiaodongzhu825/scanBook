@@ -212,9 +212,9 @@
 								<view class="grid-item" v-for="(item, index) in sortedProductList.slice(0, 12)" :key="index">
 									<image class="grid-image" :src="item.image" mode="aspectFill" @click="previewProductImage(index)" v-if="item.image"></image>
 									<text class="grid-book-name">{{ item.bookName || '未知书名' }}</text>
-									<text class="grid-author">{{ item.author || item.shopName || '' }}</text>
-									<text class="grid-total-price">{{ item.totalPrice }}</text>
-									<text class="grid-price-detail" v-if="item.shippingFee && item.shippingFee > 0">运{{ item.shippingFee }}</text>
+									<text class="grid-author">{{ item.author || '' }}</text>
+									<text class="grid-total-price">¥{{ item.totalPrice.toFixed(2) }}</text>
+									<text class="grid-price-detail" v-if="item.shippingFee > 0">书¥{{ item.bookPrice.toFixed(2) }}+运¥{{ item.shippingFee.toFixed(2) }}</text>
 									<text class="grid-condition">{{ item.condition || '' }}</text>
 									<text class="grid-shop">{{ item.shopName || '' }}</text>
 								</view>
@@ -619,21 +619,31 @@
 					<text class="popup-close" @click="showFilterPopup = false">✕</text>
 				</view>
 				<view class="popup-body">
-					<view class="filter-group">
+					<view class="filter-group" v-if="filterPublishers.length > 0">
 						<text class="group-title">出版社</text>
-						<input class="filter-search-input" v-model="filterPress" placeholder="输入出版社名称筛选" @input="onFilterPressInput" />
-						<view class="filter-suggest" v-if="filterPress && filterPressSuggestions.length > 0">
-							<view class="suggest-item" v-for="(item, idx) in filterPressSuggestions" :key="'ps'+idx" @click="selectFilterPress(item)">
-								<text class="suggest-text">{{ item }}</text>
+						<view class="tag-list">
+							<view 
+								class="tag-item" 
+								v-for="(item, index) in filterPublishers" 
+								:key="'p'+index"
+								:class="{ active: filterPress === item }"
+								@click="filterPress = filterPress === item ? '' : item"
+							>
+								<text class="tag-text">{{ item }}</text>
 							</view>
 						</view>
 					</view>
-					<view class="filter-group">
+					<view class="filter-group" v-if="filterAuthors.length > 0">
 						<text class="group-title">作者</text>
-						<input class="filter-search-input" v-model="filterAuthor" placeholder="输入作者名称筛选" @input="onFilterAuthorInput" />
-						<view class="filter-suggest" v-if="filterAuthor && filterAuthorSuggestions.length > 0">
-							<view class="suggest-item" v-for="(item, idx) in filterAuthorSuggestions" :key="'as'+idx" @click="selectFilterAuthor(item)">
-								<text class="suggest-text">{{ item }}</text>
+						<view class="tag-list">
+							<view 
+								class="tag-item" 
+								v-for="(item, index) in filterAuthors" 
+								:key="'a'+index"
+								:class="{ active: filterAuthor === item }"
+								@click="filterAuthor = filterAuthor === item ? '' : item"
+							>
+								<text class="tag-text">{{ item }}</text>
 							</view>
 						</view>
 					</view>
@@ -783,8 +793,6 @@ export default {
 			showFilterPopup: false,
 			filterPress: '',
 			filterAuthor: '',
-			filterPressSuggestions: [],
-			filterAuthorSuggestions: [],
 			
 			// 仓库弹窗
 			showWarehousePicker: false,
@@ -855,12 +863,12 @@ export default {
 	computed: {
 		sortedProductList() {
 			let list = [...this.productList]
-			// 筛选（模糊匹配）
+			// 筛选（精确匹配，同zhizhu）
 			if (this.filterPress) {
-				list = list.filter(item => (item.shopName || '').toLowerCase().includes(this.filterPress.toLowerCase()))
+				list = list.filter(item => item.shopName === this.filterPress)
 			}
 			if (this.filterAuthor) {
-				list = list.filter(item => (item.author || '').toLowerCase().includes(this.filterAuthor.toLowerCase()))
+				list = list.filter(item => item.author === this.filterAuthor)
 			}
 			// 排序
 			if (this.sortBy === 'total') {
@@ -979,11 +987,9 @@ export default {
 
 			// 2. 搜索孔夫子 - 获取在售商品信息
 			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
-			// 排序参数：5=价格低到高 7=综合
-			const sortType = this.sortBy !== 'total' && this.sortBy !== 'book' ? '' : '5'
 			// 并行请求：商品列表 + 品相统计（在售）+ 品相统计（已售）
 			Promise.all([
-				searchProducts(keyword, { phpsessid, sortType }),
+				searchProducts(keyword, { phpsessid }),
 				searchFacet(keyword, { phpsessid, dataType: 0 }),
 				searchFacet(keyword, { phpsessid, dataType: 1 })
 			]).then(([productsData, onSaleFacet, soldFacet]) => {
@@ -991,18 +997,23 @@ export default {
 				if (productsData && productsData.total > 0) {
 					// 在售商品列表（最多12条）
 					const list = (productsData.list || []).slice(0, 12)
-					this.productList = list.map(item => ({
-						image: item.imgBigUrl || '',
-						totalPrice: parseFloat((item.priceText || '0').replace(/[^\d.]/g, '')),
-						bookPrice: parseFloat((item.priceText || '0').replace(/[^\d.]/g, '')),
-						shippingFee: item.postage && item.postage.shippingList && item.postage.shippingList.length > 0 ? parseFloat(item.postage.shippingList[0].shippingFee || 0) : 0,
-						condition: item.qualityText || '',
-						shopName: item.shopName || '',
-						bookName: item.title || '',
-						author: item.author || '',
-						pubDate: item.pubDateText || '',
-						bookId: item.id || ''
-					}))
+					this.productList = list.map(item => {
+						const cleanPrice = parseFloat((item.priceText || '0').replace(/[^\d.]/g, ''))
+						const shippingFee = item.postage && item.postage.shippingList && item.postage.shippingList.length > 0 ? parseFloat(item.postage.shippingList[0].shippingFee || 0) : 0
+						const totalPrice = Number((cleanPrice + shippingFee).toFixed(2))
+						return {
+							image: item.imgBigUrl || '',
+							totalPrice: totalPrice,
+							bookPrice: cleanPrice,
+							shippingFee: shippingFee,
+							condition: item.qualityText || '',
+							shopName: item.shopName || '',
+							bookName: item.title || '',
+							author: item.author || '',
+							pubDate: item.pubDateText || '',
+							bookId: item.id || ''
+						}
+					})
 				}
 				// 市场统计：使用facet接口的真实数据（totalFound为准）
 				this.marketData = {
@@ -1214,10 +1225,9 @@ export default {
 			this.searchISBN()
 		},
 
-		// 排序 - 切换后重新请求孔夫子接口
+		// 排序 - 仅本地排序（不重新请求孔夫子接口）
 		sortProducts(by) {
 			this.sortBy = by
-			this.searchISBN()
 		},
 
 		// 筛选
@@ -1250,28 +1260,6 @@ export default {
 			if (urls.length > 0) {
 				uni.previewImage({ urls, current: index })
 			}
-		},
-
-		// 筛选 - 出版社输入提示
-		onFilterPressInput() {
-			const kw = this.filterPress.toLowerCase()
-			this.filterPressSuggestions = this.filterPublishers.filter(p => p.toLowerCase().includes(kw)).slice(0, 10)
-		},
-
-		selectFilterPress(val) {
-			this.filterPress = val
-			this.filterPressSuggestions = []
-		},
-
-		// 筛选 - 作者输入提示
-		onFilterAuthorInput() {
-			const kw = this.filterAuthor.toLowerCase()
-			this.filterAuthorSuggestions = this.filterAuthors.filter(a => a.toLowerCase().includes(kw)).slice(0, 10)
-		},
-
-		selectFilterAuthor(val) {
-			this.filterAuthor = val
-			this.filterAuthorSuggestions = []
 		},
 
 		// 提交上传
@@ -2164,57 +2152,6 @@ export default {
 
 .tag-item.active .tag-text {
   color: #409eff;
-}
-
-/* 筛选弹窗 - 搜索输入框 */
-.filter-search-input {
-  background: #f5f6fa;
-  border: 2rpx solid #dcdfe6;
-  border-radius: 8rpx;
-  height: 64rpx;
-  padding: 0 16rpx;
-  font-size: 26rpx;
-  color: #303133;
-  width: 100%;
-  box-sizing: border-box;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.filter-search-input:focus {
-  border-color: #409eff;
-  outline: none;
-}
-
-.filter-search-input::placeholder {
-  color: #c0c4cc;
-}
-
-.filter-suggest {
-  background: #ffffff;
-  border: 2rpx solid #e4e7ed;
-  border-radius: 8rpx;
-  margin-top: 6rpx;
-  max-height: 300rpx;
-  overflow-y: auto;
-}
-
-.suggest-item {
-  padding: 16rpx 20rpx;
-  border-bottom: 2rpx solid #f0f2f5;
-}
-
-.suggest-item:last-child {
-  border-bottom: none;
-}
-
-.suggest-text {
-  font-size: 26rpx;
-  color: #303133;
-}
-
-.suggest-item:active {
-  background-color: #ecf5ff;
 }
 
 .popup-footer {
