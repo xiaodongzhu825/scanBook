@@ -190,7 +190,7 @@ export function getLocationList(params = {}) {
 			url: url,
 			method: 'GET',
 			header: {
-				'Authorization': locToken
+				'Authorization': 'Bearer ' + locToken
 			},
 			success: (res) => {
 				console.log('【货位列表】响应状态码:', res.statusCode)

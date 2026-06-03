@@ -1149,18 +1149,24 @@ export default {
 					warehouse_id: warehouseId, type: 1, status: 1,
 					page: 1, page_size: 999
 				})
-				if (res.code === 0 && res.data && res.data.list) {
-					this.popupLocationList = res.data.list
-					this.popupAllLocationList = res.data.list
-					const total = res.data.total || 0
-					this.popupLocHasMore = this.popupLocPage * this.popupLocPageSize < total
-				} else {
-					const list = Array.isArray(res.data) ? res.data : []
+				console.log('【货位列表】load响应:', JSON.stringify(res))
+				// 兼容多种响应格式
+				let list = []
+				if (res.code === 0 && res.data) {
+					list = res.data.list || res.data.records || []
+				}
+				if (list.length === 0) {
+					list = res.list || res.records || []
+				}
+				if (list.length > 0) {
 					this.popupLocationList = list
 					this.popupAllLocationList = list
 					this.popupLocHasMore = false
+				} else {
+					console.warn('货位列表为空', JSON.stringify(res))
 				}
 			} catch (e) {
+				console.error('加载货位失败:', e)
 				this.popupLocationList = this.popupAllLocationList
 				this.popupLocHasMore = false
 			} finally {
