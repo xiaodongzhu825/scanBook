@@ -904,6 +904,14 @@ export default {
 
 		// ISBN扫码
 		scanISBN() {
+			// 必须已登录孔网且选择了品相，否则直接弹窗不打开摄像头
+			if (!this.isLoggedIn || !this.selectedCondition) {
+				const msg = []
+				if (!this.isLoggedIn) msg.push('登录孔网账号')
+				if (!this.selectedCondition) msg.push('选择品相')
+				uni.showToast({ title: '请先' + msg.join('和'), icon: 'none' })
+				return
+			}
 			uni.scanCode({
 				onlyFromCamera: false,
 				success: (res) => {
