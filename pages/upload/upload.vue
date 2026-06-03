@@ -751,7 +751,7 @@
 
 <script>
 import { getWarehouseList, getLocationList, searchBookByIsbn } from '@/utils/api.js'
-import { login as kongfzLogin, searchProducts } from '@/utils/kongfz.js'
+import { login as kongfzLogin, searchProducts, searchFacet } from '@/utils/kongfz.js'
 
 export default {
 	data() {
@@ -993,11 +993,15 @@ export default {
 
 			// 2. 搜索孔夫子 - 获取在售商品信息
 			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
-			searchProducts(this.isbn, { phpsessid }).then(data => {
+			// 并行请求：商品列表 + 品相统计
+			Promise.all([
+				searchProducts(this.isbn, { phpsessid }),
+				searchFacet(this.isbn, { phpsessid })
+			]).then(([productsData, facetData]) => {
 				this.isLoading = false
-				if (data && data.total > 0) {
+				if (productsData && productsData.total > 0) {
 					// 在售商品列表（最多12条）
-					const list = (data.list || []).slice(0, 12)
+					const list = (productsData.list || []).slice(0, 12)
 					this.productList = list.map(item => ({
 						image: item.imgBigUrl || '',
 						totalPrice: parseFloat((item.priceText || '0').replace(/[^\d.]/g, '')),
@@ -1010,26 +1014,17 @@ export default {
 						pubDate: item.pubDateText || '',
 						bookId: item.id || ''
 					}))
-					// 计算市场竞争数据（在售/旧/新/已售）
-					const oldCount = list.filter(item => {
-						const qt = (item.qualityText || '').toLowerCase()
-						return !qt.includes('全新') && !qt.includes('新')
-					}).length
-					const newCount = list.filter(item => {
-						const qt = (item.qualityText || '').toLowerCase()
-						return qt.includes('全新') || qt.includes('新')
-					}).length
-					this.marketData = {
-						onSale: data.total || 0,
-						old: oldCount,
-						new: newCount,
-						sold: 0
-					}
-				} else {
-					this.marketData = { onSale: 0, old: 0, new: 0, sold: 0 }
+				}
+				// 市场统计：使用facet接口的真实数据
+				this.marketData = {
+					onSale: productsData ? productsData.total : 0,
+					old: facetData ? facetData.oldCount : 0,
+					new: facetData ? facetData.newCount : 0,
+					sold: 0
 				}
 			}).catch(() => {
 				this.isLoading = false
+				this.marketData = { onSale: 0, old: 0, new: 0, sold: 0 }
 			})
 		},
 

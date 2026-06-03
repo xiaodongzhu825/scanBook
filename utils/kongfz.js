@@ -30,7 +30,6 @@ export function login(username, password) {
 
 				// 提取PHPSESSID
 				let phpsessid = ''
-				// 尝试从 Set-Cookie 中提取
 				const setCookie = res.header['Set-Cookie'] || res.header['set-cookie']
 				if (setCookie) {
 					const match = setCookie.match(/PHPSESSID=([^;]+)/)
@@ -39,7 +38,6 @@ export function login(username, password) {
 					}
 				}
 
-				// 判断登录是否成功
 				const responseText = typeof res.data === 'string' ? res.data : JSON.stringify(res.data)
 				const isSuccess = responseText.includes('login.kongfz.cn/Pc/Session/rsync') ||
 					responseText.includes('window.location.href') ||
@@ -53,7 +51,6 @@ export function login(username, password) {
 						message: '登录成功'
 					})
 				} else if (res.statusCode === 200 && responseText.includes('errCode')) {
-					// 尝试解析错误信息
 					try {
 						const json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
 						if (json.errCode === 1001) {
@@ -81,11 +78,56 @@ export function login(username, password) {
 }
 
 /**
+ * 搜索孔夫子商品品相统计（全新/古旧等）
+ * @param {string} keyword ISBN或书名
+ * @param {object} options {phpsessid, userArea}
+ * @returns {Promise<{newCount: number, oldCount: number, totalFound: number}>}
+ */
+export function searchFacet(keyword, options = {}) {
+	const { phpsessid = '', userArea = '1006000000' } = options
+	return new Promise((resolve, reject) => {
+		uni.request({
+			url: 'https://search.kongfz.com/pc-gw/search-web/client/pc/product/keyword/normal/facet',
+			method: 'GET',
+			data: {
+				dataType: 0,
+				keyword: keyword,
+				page: 1,
+				userArea: userArea
+			},
+			header: {
+				'Cookie': phpsessid ? `PHPSESSID=${phpsessid}` : ''
+			},
+			success: (res) => {
+				console.log('孔夫子统计响应:', res.statusCode, res.data)
+				if (res.statusCode === 200 && res.data && res.data.status === 1 && res.data.data) {
+					const qualities = res.data.data.qualities || []
+					let newCount = 0
+					let oldCount = 0
+					qualities.forEach(q => {
+						if (q.showName === '全新') {
+							newCount = parseInt(q.showValue || 0, 10)
+						}
+						if (q.showName === '古 | 旧 | 二手') {
+							oldCount = parseInt(q.showValue || 0, 10)
+						}
+					})
+					const totalFound = parseInt(res.data.data.totalFoundText || res.data.data.matchInfo?.totalFound || 0, 10)
+					resolve({ newCount, oldCount, totalFound })
+				} else {
+					resolve({ newCount: 0, oldCount: 0, totalFound: 0 })
+				}
+			},
+			fail: (err) => {
+				console.error('孔夫子统计失败:', err)
+				resolve({ newCount: 0, oldCount: 0, totalFound: 0 })
+			}
+		})
+	})
+}
+
+/**
  * 获取商品列表（分页）
- * @param {string} token PHPSESSID
- * @param {object} params 筛选参数
- * @param {function} onProgress 进度回调
- * @returns {Promise<Array>}
  */
 export function fetchItems(token, params = {}, onProgress) {
 	const items = []
@@ -140,11 +182,6 @@ export function fetchItems(token, params = {}, onProgress) {
 	})
 }
 
-export default {
-	login,
-	fetchItems
-}
-
 /**
  * 搜索孔夫子在售商品（需要登录Cookie）
  * @param {string} keyword ISBN或书名
@@ -189,4 +226,11 @@ export function searchProducts(keyword, options = {}) {
 			}
 		})
 	})
+}
+
+export default {
+	login,
+	searchFacet,
+	fetchItems,
+	searchProducts
 }
