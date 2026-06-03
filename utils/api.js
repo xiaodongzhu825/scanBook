@@ -139,8 +139,10 @@ function generateSimpleSignedUrl(baseUrl, params = {}) {
  * 获取token（从本地存储或登录接口）
  */
 function getAuthToken() {
-	// 优先从本地存储获取
-	const token = uni.getStorageSync('psi_token')
+	// 优先从本地存储获取（兼容两个key）
+	let token = uni.getStorageSync('psi_token')
+	if (token) return token
+	token = uni.getStorageSync('token')
 	if (token) return token
 	
 	// 使用curl中的固定token（临时方案）
