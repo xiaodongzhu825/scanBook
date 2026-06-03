@@ -169,16 +169,16 @@
 									<text class="stat-value">{{ marketData.onSale }}</text>
 								</view>
 								<view class="stat-item">
-									<text class="stat-label">最低价</text>
-									<text class="stat-value min-price">{{ marketData.minPrice || '-' }}</text>
+									<text class="stat-label">旧</text>
+									<text class="stat-value">{{ marketData.old }}</text>
 								</view>
 								<view class="stat-item">
-									<text class="stat-label">均价</text>
-									<text class="stat-value avg-price">{{ marketData.avgPrice || '-' }}</text>
+									<text class="stat-label">新</text>
+									<text class="stat-value">{{ marketData.new }}</text>
 								</view>
 								<view class="stat-item">
-									<text class="stat-label">不同店铺</text>
-									<text class="stat-value">{{ marketData.shops || 0 }}</text>
+									<text class="stat-label">已售</text>
+									<text class="stat-value">{{ marketData.sold }}</text>
 								</view>
 							</view>
 						</view>
@@ -774,7 +774,7 @@ export default {
 			photoList: [],
 			isbnSelectedArea: '',
 			isbnWarehouseData: null,
-			marketData: { onSale: 0, minPrice: '-', avgPrice: '-', shops: 0 },
+			marketData: { onSale: 0, old: 0, new: 0, sold: 0 },
 			productList: [],
 			compareType: 'isbn',
 			sortBy: 'total',
@@ -1010,19 +1010,23 @@ export default {
 						pubDate: item.pubDateText || '',
 						bookId: item.id || ''
 					}))
-					// 计算市场竞争数据
-					const prices = this.productList.map(p => p.totalPrice).filter(p => p && p > 0)
-					const avg = prices.length > 0 ? (prices.reduce((a, b) => a + b, 0) / prices.length) : 0
-					const min = prices.length > 0 ? Math.min(...prices) : 0
-					const shopSet = new Set(list.map(item => item.shopName).filter(Boolean))
+					// 计算市场竞争数据（在售/旧/新/已售）
+					const oldCount = list.filter(item => {
+						const qt = (item.qualityText || '').toLowerCase()
+						return !qt.includes('全新') && !qt.includes('新')
+					}).length
+					const newCount = list.filter(item => {
+						const qt = (item.qualityText || '').toLowerCase()
+						return qt.includes('全新') || qt.includes('新')
+					}).length
 					this.marketData = {
 						onSale: data.total || 0,
-						minPrice: min > 0 ? '¥' + min.toFixed(2) : '-',
-						avgPrice: avg > 0 ? '¥' + avg.toFixed(2) : '-',
-						shops: shopSet.size || 0
+						old: oldCount,
+						new: newCount,
+						sold: 0
 					}
 				} else {
-					this.marketData = { onSale: 0, minPrice: '-', avgPrice: '-', shops: 0 }
+					this.marketData = { onSale: 0, old: 0, new: 0, sold: 0 }
 				}
 			}).catch(() => {
 				this.isLoading = false
@@ -1819,14 +1823,6 @@ export default {
   font-weight: 600;
 }
 
-.stat-value.min-price {
-  color: #f56c6c;
-}
-
-.stat-value.avg-price {
-  color: #e6a23c;
-}
-
 /* ========== 在售商品 ========== */
 .section-header-row {
   display: flex;
@@ -1915,7 +1911,7 @@ export default {
 /* ========== 商品网格 ========== */
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8rpx;
   margin-top: 10rpx;
 }
