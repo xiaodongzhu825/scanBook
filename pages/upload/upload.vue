@@ -461,6 +461,30 @@
 												<view class="login-btn" @click="handleLogin">登录</view>
 											</view>
 										</view>
+										<!-- 已保存账号列表 -->
+										<view class="saved-accounts" v-if="savedAccountList.length > 0">
+											<view class="saved-header">
+												<text class="saved-title">已保存账号</text>
+												<text class="saved-count">{{ savedAccountList.length }}个</text>
+											</view>
+											<view class="saved-list">
+												<view
+													class="saved-item"
+													v-for="(acc, idx) in savedAccountList"
+													:key="idx"
+													@click="quickLogin(acc)"
+												>
+													<view class="saved-item-left">
+														<view class="saved-avatar">&#128100;</view>
+														<view class="saved-info">
+															<text class="saved-name">{{ acc.username }}</text>
+															<text class="saved-hint">点击直接登录</text>
+														</view>
+													</view>
+													<text class="saved-del" @click.stop="deleteSavedAccount(idx)">删除</text>
+												</view>
+											</view>
+										</view>
 									</view>
 								</scroll-view>
 							</swiper-item>
@@ -696,7 +720,8 @@ export default {
 			showPassword: false,
 			rememberPassword: false,
 			blockedList: '',
-			kongfzToken: ''
+			kongfzToken: '',
+			savedAccountList: []
 		}
 	},
 
@@ -721,6 +746,8 @@ export default {
 			this.loginAccount = remembered
 			this.rememberPassword = true
 		}
+		// 加载已保存账号列表
+		this.loadSavedAccounts()
 	},
 
 	computed: {
@@ -1022,21 +1049,27 @@ export default {
 				uni.showToast({ title: '请输入密码', icon: 'none' })
 				return
 			}
+			this.doLogin(this.loginAccount, this.loginPassword)
+		},
+
+		doLogin(username, password) {
 			uni.showLoading({ title: '登录中...', mask: true })
-			kongfzLogin(this.loginAccount, this.loginPassword).then(res => {
+			kongfzLogin(username, password).then(res => {
 				uni.hideLoading()
 				if (res.success) {
 					this.kongfzToken = res.token
 					this.isLoggedIn = true
-					this.shopName = this.loginAccount
+					this.shopName = username
 					this.shopRegion = '孔夫子旧书网'
 					// 持久化登录状态
 					uni.setStorageSync('kongfz_phpsessid', res.token)
-					uni.setStorageSync('kongfz_shop_name', this.loginAccount)
+					uni.setStorageSync('kongfz_shop_name', username)
 					uni.setStorageSync('kongfz_shop_region', '孔夫子旧书网')
 					if (this.rememberPassword) {
-						uni.setStorageSync('kongfz_remembered_account', this.loginAccount)
+						uni.setStorageSync('kongfz_remembered_account', username)
 					}
+					// 保存到账号列表
+					this.saveAccount(username, password)
 					uni.showToast({ title: '登录成功', icon: 'success' })
 				} else {
 					uni.showToast({ title: res.message || '登录失败', icon: 'none' })
@@ -1061,6 +1094,52 @@ export default {
 						uni.removeStorageSync('kongfz_phpsessid')
 						uni.removeStorageSync('kongfz_shop_name')
 						uni.removeStorageSync('kongfz_shop_region')
+					}
+				}
+			})
+		},
+
+		// 加载已保存账号列表
+		loadSavedAccounts() {
+			try {
+				const list = uni.getStorageSync('kongfz_saved_accounts')
+				this.savedAccountList = list ? JSON.parse(list) : []
+			} catch (e) {
+				this.savedAccountList = []
+			}
+		},
+
+		// 保存账号到列表
+		saveAccount(username, password) {
+			const accounts = [...this.savedAccountList]
+			// 去重：如果已存在相同用户名，替换密码
+			const idx = accounts.findIndex(a => a.username === username)
+			if (idx >= 0) {
+				accounts[idx].password = password
+			} else {
+				accounts.push({ username, password })
+			}
+			this.savedAccountList = accounts
+			uni.setStorageSync('kongfz_saved_accounts', JSON.stringify(accounts))
+		},
+
+		// 点击已保存账号快速登录
+		quickLogin(acc) {
+			uni.showLoading({ title: '登录中...', mask: true })
+			this.loginAccount = acc.username
+			this.loginPassword = acc.password
+			this.doLogin(acc.username, acc.password)
+		},
+
+		// 删除已保存账号
+		deleteSavedAccount(idx) {
+			uni.showModal({
+				title: '提示',
+				content: '确定要删除该账号吗？',
+				success: (res) => {
+					if (res.confirm) {
+						this.savedAccountList.splice(idx, 1)
+						uni.setStorageSync('kongfz_saved_accounts', JSON.stringify(this.savedAccountList))
 					}
 				}
 			})
@@ -2199,6 +2278,105 @@ export default {
 .checkbox-label {
   font-size: 24rpx;
   color: #909399;
+}
+
+/* --- 已保存账号列表 --- */
+.saved-accounts {
+  margin-top: 28rpx;
+  padding-top: 24rpx;
+  border-top: 2rpx solid #ebeef5;
+}
+
+.saved-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.saved-title {
+  font-size: 26rpx;
+  color: #303133;
+  font-weight: 600;
+}
+
+.saved-count {
+  font-size: 22rpx;
+  color: #909399;
+}
+
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.saved-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 18rpx;
+  background: #f7f8fa;
+  border: 2rpx solid #ebeef5;
+  border-radius: 10rpx;
+}
+
+.saved-item:active {
+  background: #ecf5ff;
+  border-color: #409eff;
+}
+
+.saved-item-left {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.saved-avatar {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #ecf5ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  flex-shrink: 0;
+}
+
+.saved-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 0;
+  flex: 1;
+}
+
+.saved-name {
+  font-size: 26rpx;
+  color: #303133;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-hint {
+  font-size: 22rpx;
+  color: #909399;
+}
+
+.saved-del {
+  font-size: 24rpx;
+  color: #f56c6c;
+  padding: 6rpx 10rpx;
+  flex-shrink: 0;
+}
+
+.saved-del:active {
+  opacity: 0.7;
 }
 
 .login-btn {
