@@ -190,13 +190,13 @@ export function fetchItems(token, params = {}, onProgress) {
  * list中每项: {id, title, author, press, priceText, imgBigUrl, shopName, qualityText, pubDateText, postage}
  */
 export function searchProducts(keyword, options = {}) {
-	const { phpsessid = '', page = 1, sortType = '', userArea = '13003000000' } = options
+	const { phpsessid = '', page = 1, sortType = '' } = options
 	return new Promise((resolve, reject) => {
 		const reqData = {
 			dataType: 0,
 			keyword: keyword,
 			page: page,
-			userArea: userArea
+			userArea: '13003000000'
 		}
 		if (sortType) {
 			reqData.sortType = sortType

@@ -244,15 +244,7 @@
 								</view>
 							</view>
 						</view>
-						<view class="form-section" v-if="isLoggedIn">
-							<view class="section-title">
-								<text class="title-text">搜索区域</text>
-							</view>
-							<view class="form-section-body">
-								<input class="form-input" v-model="kongfzUserArea" placeholder="区域代码，默认13003000000" @blur="saveUserArea" />
-								<text class="form-hint">孔夫子API搜索区域代码，登录后可修改</text>
-							</view>
-						</view>
+
 						<view class="bottom-placeholder"></view>
 					</scroll-view>
 				</view>
@@ -829,7 +821,6 @@ export default {
 			rememberPassword: false,
 			blockedList: '',
 			kongfzToken: '',
-			kongfzUserArea: '',
 			savedAccountList: [],
 			
 			// 定价策略
@@ -851,12 +842,10 @@ export default {
 		// 恢复登录状态
 		const savedToken = uni.getStorageSync('kongfz_phpsessid')
 		const savedName = uni.getStorageSync('kongfz_shop_name')
-		const savedArea = uni.getStorageSync('kongfz_user_area')
 		if (savedToken && savedName) {
 			this.kongfzToken = savedToken
 			this.shopName = savedName
 			this.shopRegion = uni.getStorageSync('kongfz_shop_region') || '孔夫子旧书网'
-			this.kongfzUserArea = savedArea || '13003000000'
 			this.isLoggedIn = true
 		}
 		// 恢复记住的账号
@@ -998,14 +987,13 @@ export default {
 
 			// 2. 搜索孔夫子 - 获取在售商品信息
 			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
-			const userArea = this.kongfzUserArea || uni.getStorageSync('kongfz_user_area') || '13003000000'
 			// 排序参数：7=总价从低到高(含运费) 5=书价从低到高
 			const sortType = this.sortBy === 'book' ? '5' : '7'
 			// 并行请求：商品列表 + 品相统计（在售）+ 品相统计（已售）
 			Promise.all([
-				searchProducts(keyword, { phpsessid, sortType, userArea }),
-				searchFacet(keyword, { phpsessid, dataType: 0, userArea }),
-				searchFacet(keyword, { phpsessid, dataType: 1, userArea })
+				searchProducts(keyword, { phpsessid, sortType }),
+				searchFacet(keyword, { phpsessid, dataType: 0 }),
+				searchFacet(keyword, { phpsessid, dataType: 1 })
 			]).then(([productsData, onSaleFacet, soldFacet]) => {
 				this.isLoading = false
 				if (productsData && productsData.total > 0) {
@@ -1366,18 +1354,12 @@ export default {
 						this.shopName = ''
 						this.shopRegion = ''
 						this.kongfzToken = ''
-						this.kongfzUserArea = ''
 						uni.removeStorageSync('kongfz_phpsessid')
 						uni.removeStorageSync('kongfz_shop_name')
 						uni.removeStorageSync('kongfz_shop_region')
-						uni.removeStorageSync('kongfz_user_area')
 					}
 				}
 			})
-		},
-
-		saveUserArea() {
-			uni.setStorageSync('kongfz_user_area', this.kongfzUserArea)
 		},
 
 		// 加载已保存账号列表
