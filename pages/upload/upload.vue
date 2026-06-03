@@ -531,7 +531,7 @@
 										<!-- 最低价模式 -->
 										<view v-if="priceMode === 'lowest'">
 											<view class="config-field">
-												<text class="config-label">以最低价为参照物</text>
+												<text class="config-label">以最低价为参照物（第{{ lowestRank }}条）</text>
 												<text class="config-desc">选择第几条数据作为参考价</text>
 												<view class="picker-wrap">
 													<picker :value="lowestRank - 1" :range="lowestOptions" @change="e => lowestRank = e.detail.value + 1">
@@ -562,8 +562,8 @@
 										<!-- 均价模式 -->
 										<view v-if="priceMode === 'average'">
 											<view class="config-field">
-												<text class="config-label">以总价最低的N个价格平均值为参考物</text>
-												<text class="config-desc">选择前几条数据取平均值</text>
+												<text class="config-label">以总价最低的{{ averageCount }}个价格平均值为参考物</text>
+												<text class="config-desc">选择前{{ averageCount }}条数据取平均值</text>
 												<view class="picker-wrap">
 													<picker :value="averageCount - 2" :range="averageOptions" @change="e => averageCount = e.detail.value + 2">
 														<view class="picker-btn">
