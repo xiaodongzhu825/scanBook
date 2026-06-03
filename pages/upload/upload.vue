@@ -1122,12 +1122,15 @@ export default {
 			this.popupLoading = true
 			try {
 				const res = await getWarehouseList({ status: 1, page: 1, page_size: 100 })
-				if (res.code === 0 && res.data && res.data.list) {
-					this.popupWarehouseList = res.data.list
-					if (this.popupWarehouseList.length > 0) {
-						this.popupActiveWhIndex = 0
-						this.loadPopupLocations(this.popupWarehouseList[0].id)
-					}
+				console.log('仓库列表原始响应:', JSON.stringify(res))
+				// 兼容多种响应格式
+				const list = res.data?.list || res.data?.records || res.list || res.records || []
+				if (list.length > 0) {
+					this.popupWarehouseList = list
+					this.popupActiveWhIndex = 0
+					this.loadPopupLocations(list[0].id)
+				} else {
+					console.warn('仓库列表为空, 响应code:', res.code, '响应data:', JSON.stringify(res.data))
 				}
 			} catch (e) {
 				console.error('加载仓库失败:', e)

@@ -155,7 +155,9 @@ function getAuthToken() {
 export function getWarehouseList(params = {}) {
 	return new Promise((resolve, reject) => {
 		const url = generateSignedUrl(`${BASE_URL}/api/warehouse/list`, params)
-		console.log('请求仓库列表URL:', url)
+		console.log('【仓库列表】请求URL:', url)
+		console.log('【仓库列表】请求参数:', JSON.stringify(params))
+		console.log('【仓库列表】Authorization:', 'Bearer ' + getAuthToken())
 		uni.request({
 			url: url,
 			method: 'GET',
@@ -163,7 +165,8 @@ export function getWarehouseList(params = {}) {
 				'Authorization': 'Bearer ' + getAuthToken()
 			},
 			success: (res) => {
-				console.log('仓库列表请求成功:', res.statusCode, res.data)
+				console.log('【仓库列表】响应状态码:', res.statusCode)
+				console.log('【仓库列表】响应数据:', JSON.stringify(res.data))
 				if (res.statusCode === 200) {
 					resolve(res.data)
 				} else {
@@ -171,7 +174,7 @@ export function getWarehouseList(params = {}) {
 				}
 			},
 			fail: (err) => {
-				console.error('仓库列表请求失败:', err)
+				console.error('【仓库列表】请求失败:', JSON.stringify(err))
 				reject(err)
 			}
 		})
@@ -184,7 +187,9 @@ export function getWarehouseList(params = {}) {
 export function getLocationList(params = {}) {
 	return new Promise((resolve, reject) => {
 		const url = generateSignedUrl(`${BASE_URL}/api/location/list`, params)
-		console.log('请求货位列表URL:', url)
+		console.log('【货位列表】请求URL:', url)
+		console.log('【货位列表】请求参数:', JSON.stringify(params))
+		console.log('【货位列表】Authorization:', 'Bearer ' + getAuthToken())
 		uni.request({
 			url: url,
 			method: 'GET',
@@ -192,7 +197,8 @@ export function getLocationList(params = {}) {
 				'Authorization': 'Bearer ' + getAuthToken()
 			},
 			success: (res) => {
-				console.log('货位列表请求成功:', res.statusCode, res.data)
+				console.log('【货位列表】响应状态码:', res.statusCode)
+				console.log('【货位列表】响应数据:', JSON.stringify(res.data))
 				if (res.statusCode === 200) {
 					resolve(res.data)
 				} else {
@@ -200,7 +206,7 @@ export function getLocationList(params = {}) {
 				}
 			},
 			fail: (err) => {
-				console.error('货位列表请求失败:', err)
+				console.error('【货位列表】请求失败:', JSON.stringify(err))
 				reject(err)
 			}
 		})
