@@ -144,3 +144,40 @@ export default {
 	login,
 	fetchItems
 }
+
+/**
+ * 搜索孔夫子商品（公开搜索API，无需登录）
+ * @param {string} keyword ISBN或书名
+ * @param {number} page 页码
+ * @returns {Promise<{total: number, list: Array}>}
+ */
+export function searchProducts(keyword, page = 1) {
+	return new Promise((resolve, reject) => {
+		uni.request({
+			url: `https://search.kongfz.com/pc-gw/search-web/client/pc/product/keyword/isbnList?dataType=0&keyword=${encodeURIComponent(keyword)}&page=${page}`,
+			method: 'GET',
+			header: {
+				'Accept': 'application/json, text/plain, */*',
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+				'Referer': `https://search.kongfz.com/product/?keyword=${encodeURIComponent(keyword)}`,
+				'sec-ch-ua': '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
+				'sec-ch-ua-mobile': '?0',
+				'sec-ch-ua-platform': '"Windows"'
+			},
+			success: (res) => {
+				console.log('孔夫子搜索响应:', res.statusCode, res.data)
+				if (res.statusCode === 200 && res.data && res.data.status === 1 && res.data.data) {
+					resolve(res.data.data)
+				} else if (res.statusCode === 200 && res.data && res.data.data) {
+					resolve(res.data.data)
+				} else {
+					resolve({ total: 0, list: [] })
+				}
+			},
+			fail: (err) => {
+				console.error('孔夫子搜索失败:', err)
+				resolve({ total: 0, list: [] })
+			}
+		})
+	})
+}

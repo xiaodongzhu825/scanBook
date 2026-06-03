@@ -210,11 +210,10 @@
 							<!-- 商品列表 -->
 							<view class="product-grid" v-else>
 								<view class="grid-item" v-for="(item, index) in sortedProductList.slice(0, 12)" :key="index">
-									<image class="grid-image" :src="item.image" mode="aspectFill" @click="previewProductImage(index)"></image>
-									<text class="grid-total-price">¥{{ item.totalPrice }}</text>
-									<text class="grid-price-detail">(书{{ item.bookPrice }}+运{{ item.shippingFee }})</text>
-									<text class="grid-condition">{{ item.condition }}</text>
-									<text class="grid-shop">{{ item.shopName }}</text>
+									<text class="grid-book-name">{{ item.bookName || '未知书名' }}</text>
+									<text class="grid-author">{{ item.author || item.shopName || '' }}</text>
+									<text class="grid-total-price">{{ item.totalPrice }}</text>
+									<text class="grid-condition">{{ item.condition || item.pubDate || '' }}</text>
 								</view>
 								
 								<!-- 无数据提示 -->
@@ -721,7 +720,7 @@
 
 <script>
 import { getWarehouseList, getLocationList, searchBookByIsbn } from '@/utils/api.js'
-import { login as kongfzLogin } from '@/utils/kongfz.js'
+import { login as kongfzLogin, searchProducts } from '@/utils/kongfz.js'
 
 export default {
 	data() {
@@ -917,17 +916,13 @@ export default {
 				return
 			}
 			this.isLoading = true
-			let bookDetail = null
-			let marketDone = false
+			this.productList = []
 
 			// 1. 查询图书中心 - 获取图书详情
 			searchBookByIsbn(this.isbn).then(data => {
-				bookDetail = data
-				// 更新表单字段
 				if (data.book_name) this.bookName = data.book_name
 				if (data.author) this.author = data.author
 				if (data.publisher) this.publisher = data.publisher
-				// 定价：fix_price 单位为分，转为元
 				if (data.fix_price && data.fix_price > 0) {
 					this.fixPrice = (data.fix_price / 100).toFixed(2)
 				}
@@ -938,26 +933,37 @@ export default {
 				console.log('图书中心查询无结果:', err)
 			})
 
-			// 2. 模拟孔网市场数据（后续接入真实API）
-			setTimeout(() => {
+			// 2. 搜索孔夫子 - 获取在售商品信息
+			searchProducts(this.isbn).then(data => {
 				this.isLoading = false
-				marketDone = true
-				// 模拟市场数据
-				this.marketData = {
-					onSale: Math.floor(Math.random() * 50) + 10,
-					old: Math.floor(Math.random() * 30) + 5,
-					new: Math.floor(Math.random() * 20) + 1,
-					sold: Math.floor(Math.random() * 10) + 1
+				if (data && data.total > 0) {
+					// 市场统计
+					this.marketData = {
+						onSale: data.total || 0,
+						old: 0,
+						new: 0,
+						sold: 0
+					}
+					// 在售商品列表（最多12条）
+					const list = (data.list || []).slice(0, 12)
+					this.productList = list.map(item => ({
+						image: '',
+						totalPrice: item.prodNum + '本在售',
+						bookPrice: '',
+						shippingFee: '',
+						condition: item.binding || '',
+						shopName: item.press || '',
+						bookName: item.bookName || '',
+						author: item.author || '',
+						pubDate: item.pubDate || '',
+						bookId: item.bookId || ''
+					}))
+				} else {
+					this.marketData = { onSale: 0, old: 0, new: 0, sold: 0 }
 				}
-				// 模拟在售商品
-				this.productList = [
-					{ image: '', totalPrice: '28.00', bookPrice: '25.00', shippingFee: '3.00', condition: '九品', shopName: '孔网书店' },
-					{ image: '', totalPrice: '35.00', bookPrice: '32.00', shippingFee: '3.00', condition: '九五品', shopName: '旧书坊' },
-					{ image: '', totalPrice: '22.00', bookPrice: '20.00', shippingFee: '2.00', condition: '八五品', shopName: '书香阁' },
-					{ image: '', totalPrice: '30.00', bookPrice: '28.00', shippingFee: '2.00', condition: '九品', shopName: '古旧书店' }
-				]
-				if (!this.isLoading) { /* already hidden */ }
-			}, 1500)
+			}).catch(() => {
+				this.isLoading = false
+			})
 		},
 
 		// 品相选择
@@ -1836,7 +1842,7 @@ export default {
 /* ========== 商品网格 ========== */
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10rpx;
   margin-top: 14rpx;
 }
@@ -1855,17 +1861,37 @@ export default {
 }
 
 .grid-total-price {
-  font-size: 28rpx;
+  font-size: 22rpx;
   color: #f56c6c;
   font-weight: 600;
   display: block;
-  margin-top: 6rpx;
+  margin-top: 4rpx;
+  text-align: center;
+  width: 100%;
 }
 
-.grid-price-detail {
+.grid-book-name {
+  font-size: 24rpx;
+  color: #303133;
+  font-weight: 500;
+  display: block;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-author {
   font-size: 20rpx;
   color: #909399;
   display: block;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2rpx;
 }
 
 .grid-condition {
@@ -1873,6 +1899,7 @@ export default {
   color: #606266;
   display: block;
   margin-top: 4rpx;
+  text-align: center;
 }
 
 .grid-shop {
