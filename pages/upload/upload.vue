@@ -1308,20 +1308,63 @@ export default {
 		// 提交上传
 		submitUpload() {
 			if (this.isSubmitting) return
-			this.isSubmitting = true
 
 			const warehouseData = this.currentTab === 'isbn' ? this.isbnWarehouseData : this.noIsbnWarehouseData
 			if (!warehouseData) {
 				uni.showToast({ title: '请选择货区', icon: 'none' })
-				this.isSubmitting = false
 				return
 			}
 
+			// 确认弹窗
+			const warehouseName = warehouseData.warehouseName || warehouseData.name || ''
+			const locCode = warehouseData.locationCode || warehouseData.code || ''
+			const locationText = warehouseName + (locCode ? ' - ' + locCode : '')
+			const isbn = this.isbn || '-'
+			const bookName = this.bookName || '-'
+			const price = this.price || '-'
+			const stock = this.stock ?? '-'
+			const author = this.author || '-'
+			const publisher = this.publisher || '-'
+			const fixPrice = this.fixPrice || '-'
+			const printTime = this.printTime || '-'
+			const photoCount = this.photoList.length
+
+			const contentLines = [
+				'📦 货区：' + locationText,
+				'📖 ISBN：' + isbn,
+				'📕 书名：' + bookName,
+				'💰 价格：' + price,
+				'📊 库存：' + stock,
+				'✍️ 作者：' + author,
+				'🏢 出版社：' + publisher,
+				'🏷️ 定价：' + fixPrice,
+				'📅 印刷时间：' + printTime,
+				'📷 图片：' + photoCount + '张'
+			]
+
+			uni.showModal({
+				title: '确认上传',
+				content: contentLines.join('\n'),
+				confirmText: '确认上传',
+				cancelText: '取消',
+				success: (res) => {
+					if (res.confirm) {
+						this.doSubmit(warehouseData)
+					} else {
+						this.isSubmitting = false
+					}
+				}
+			})
+		},
+
+		doSubmit(warehouseData) {
+			this.isSubmitting = true
 			uni.showLoading({ title: '上传中...' })
 			setTimeout(() => {
 				uni.hideLoading()
 				this.isSubmitting = false
 				uni.showToast({ title: '上传成功', icon: 'success' })
+				// 清空表单待后续对接真实API
 			}, 1500)
 		},
 
