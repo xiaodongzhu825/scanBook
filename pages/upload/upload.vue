@@ -30,6 +30,24 @@
 			<swiper-item>
 				<view class="tab-content">
 					<scroll-view class="content-scroll" scroll-y="true">
+						<!-- 品相 -->
+						<view class="form-section">
+							<view class="field-label">
+								<text class="label-text">品相</text>
+							</view>
+							<view class="condition-list">
+								<view
+									class="condition-item"
+									v-for="(item, index) in conditionList"
+									:key="index"
+									:class="{ active: selectedCondition === item }"
+									@click="selectCondition(item)"
+								>
+									<text class="condition-text">{{ item }}</text>
+								</view>
+							</view>
+						</view>
+
 						<!-- 货区 & ISBN -->
 						<view class="form-section">
 							<view class="field-label">
@@ -62,24 +80,6 @@
 								<text class="label-text">书名</text>
 							</view>
 							<input class="form-input" v-model="bookName" placeholder="请输入书名"/>
-						</view>
-
-						<!-- 品相 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">品相</text>
-							</view>
-							<view class="condition-list">
-								<view
-									class="condition-item"
-									v-for="(item, index) in conditionList"
-									:key="index"
-									:class="{ active: selectedCondition === item }"
-									@click="selectCondition(item)"
-								>
-									<text class="condition-text">{{ item }}</text>
-								</view>
-							</view>
 						</view>
 
 						<!-- 价格 & 库存 -->
