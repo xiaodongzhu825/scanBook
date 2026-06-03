@@ -993,11 +993,12 @@ export default {
 
 			// 2. 搜索孔夫子 - 获取在售商品信息
 			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
-			// 并行请求：商品列表 + 品相统计
+			// 并行请求：商品列表 + 品相统计（在售）+ 品相统计（已售）
 			Promise.all([
 				searchProducts(this.isbn, { phpsessid }),
-				searchFacet(this.isbn, { phpsessid })
-			]).then(([productsData, facetData]) => {
+				searchFacet(this.isbn, { phpsessid, dataType: 0 }),
+				searchFacet(this.isbn, { phpsessid, dataType: 1 })
+			]).then(([productsData, onSaleFacet, soldFacet]) => {
 				this.isLoading = false
 				if (productsData && productsData.total > 0) {
 					// 在售商品列表（最多12条）
@@ -1018,9 +1019,9 @@ export default {
 				// 市场统计：使用facet接口的真实数据
 				this.marketData = {
 					onSale: productsData ? productsData.total : 0,
-					old: facetData ? facetData.oldCount : 0,
-					new: facetData ? facetData.newCount : 0,
-					sold: 0
+					old: onSaleFacet ? onSaleFacet.oldCount : 0,
+					new: onSaleFacet ? onSaleFacet.newCount : 0,
+					sold: soldFacet ? (soldFacet.oldCount + soldFacet.newCount) : 0
 				}
 			}).catch(() => {
 				this.isLoading = false

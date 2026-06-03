@@ -80,17 +80,17 @@ export function login(username, password) {
 /**
  * 搜索孔夫子商品品相统计（全新/古旧等）
  * @param {string} keyword ISBN或书名
- * @param {object} options {phpsessid, userArea}
+ * @param {object} options {phpsessid, userArea, dataType}  dataType=0在售 / 1已售
  * @returns {Promise<{newCount: number, oldCount: number, totalFound: number}>}
  */
 export function searchFacet(keyword, options = {}) {
-	const { phpsessid = '', userArea = '1006000000' } = options
+	const { phpsessid = '', userArea = '1006000000', dataType = 0 } = options
 	return new Promise((resolve, reject) => {
 		uni.request({
 			url: 'https://search.kongfz.com/pc-gw/search-web/client/pc/product/keyword/normal/facet',
 			method: 'GET',
 			data: {
-				dataType: 0,
+				dataType: dataType,
 				keyword: keyword,
 				page: 1,
 				userArea: userArea
