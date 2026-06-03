@@ -157,12 +157,13 @@ export function getWarehouseList(params = {}) {
 		const url = generateSignedUrl(`${BASE_URL}/api/warehouse/list`, params)
 		console.log('【仓库列表】请求URL:', url)
 		console.log('【仓库列表】请求参数:', JSON.stringify(params))
-		console.log('【仓库列表】Authorization:', 'Bearer ' + getAuthToken())
+		const token = getAuthToken()
+		console.log('【仓库列表】token:', token)
 		uni.request({
 			url: url,
 			method: 'GET',
 			header: {
-				'Authorization': 'Bearer ' + getAuthToken()
+				'Authorization': token
 			},
 			success: (res) => {
 				console.log('【仓库列表】响应状态码:', res.statusCode)
@@ -189,12 +190,13 @@ export function getLocationList(params = {}) {
 		const url = generateSignedUrl(`${BASE_URL}/api/location/list`, params)
 		console.log('【货位列表】请求URL:', url)
 		console.log('【货位列表】请求参数:', JSON.stringify(params))
-		console.log('【货位列表】Authorization:', 'Bearer ' + getAuthToken())
+		const locToken = getAuthToken()
+		console.log('【货位列表】token:', locToken)
 		uni.request({
 			url: url,
 			method: 'GET',
 			header: {
-				'Authorization': 'Bearer ' + getAuthToken()
+				'Authorization': locToken
 			},
 			success: (res) => {
 				console.log('【货位列表】响应状态码:', res.statusCode)
