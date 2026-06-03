@@ -404,6 +404,17 @@
 			<swiper-item>
 				<view class="tab-content">
 					<view class="settings-swiper">
+						<view class="settings-sub-tabs">
+							<view class="settings-sub-tab" :class="{ active: settingsSubTabIndex === 0 }" @click="settingsSubTabIndex = 0">
+								<text>账号</text>
+							</view>
+							<view class="settings-sub-tab" :class="{ active: settingsSubTabIndex === 1 }" @click="settingsSubTabIndex = 1">
+								<text>屏蔽</text>
+							</view>
+							<view class="settings-sub-tab" :class="{ active: settingsSubTabIndex === 2 }" @click="settingsSubTabIndex = 2">
+								<text>其他</text>
+							</view>
+						</view>
 						<swiper :current="settingsSubTabIndex" @change="onSettingsSwiperChange" style="height:100%;">
 							<swiper-item>
 								<scroll-view class="content-scroll" scroll-y="true">
@@ -510,17 +521,6 @@
 								</scroll-view>
 							</swiper-item>
 						</swiper>
-						<view class="settings-sub-tabs">
-							<view class="settings-sub-tab" :class="{ active: settingsSubTabIndex === 0 }" @click="settingsSubTabIndex = 0">
-								<text>账号</text>
-							</view>
-							<view class="settings-sub-tab" :class="{ active: settingsSubTabIndex === 1 }" @click="settingsSubTabIndex = 1">
-								<text>屏蔽</text>
-							</view>
-							<view class="settings-sub-tab" :class="{ active: settingsSubTabIndex === 2 }" @click="settingsSubTabIndex = 2">
-								<text>其他</text>
-							</view>
-						</view>
 					</view>
 				</view>
 			</swiper-item>
