@@ -190,17 +190,21 @@ export function fetchItems(token, params = {}, onProgress) {
  * list中每项: {id, title, author, press, priceText, imgBigUrl, shopName, qualityText, pubDateText, postage}
  */
 export function searchProducts(keyword, options = {}) {
-	const { phpsessid = '', page = 1 } = options
+	const { phpsessid = '', page = 1, sortType = '' } = options
 	return new Promise((resolve, reject) => {
+		const reqData = {
+			dataType: 0,
+			keyword: keyword,
+			page: page,
+			userArea: '13003000000'
+		}
+		if (sortType) {
+			reqData.sortType = sortType
+		}
 		uni.request({
 			url: 'https://search.kongfz.com/pc-gw/search-web/client/pc/product/keyword/list',
 			method: 'GET',
-			data: {
-				dataType: 0,
-				keyword: keyword,
-				page: page,
-				userArea: '13003000000'
-			},
+			data: reqData,
 			header: {
 				'Cookie': phpsessid ? `PHPSESSID=${phpsessid}` : ''
 			},
