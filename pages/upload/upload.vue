@@ -1206,9 +1206,10 @@ export default {
 			this.popupLocationList = [...this.popupAllLocationList]
 		},
 
-		// 比价切换
+		// 比价切换 - 切换后触发搜索
 		switchCompare(type) {
 			this.compareType = type
+			this.searchISBN()
 		},
 
 		// 排序
