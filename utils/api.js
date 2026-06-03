@@ -139,14 +139,8 @@ function generateSimpleSignedUrl(baseUrl, params = {}) {
  * 获取token（从本地存储或登录接口）
  */
 function getAuthToken() {
-	// 优先从本地存储获取（兼容两个key）
-	let token = uni.getStorageSync('psi_token')
-	if (token) return token
-	token = uni.getStorageSync('token')
-	if (token) return token
-	
-	// 使用curl中的固定token（临时方案）
-	return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6MjU1LCJ1c2VybmFtZSI6IjE4OTA0MDU2ODAwIiwiYWJvdXRfaWQiOjE5NjUyNTQ3NzQzMjc1MzM1NzAsImlzcyI6InBzaS1zeXN0ZW0iLCJleHAiOjE3ODA0NjkxNzMsIm5iZiI6MTc4MDM4Mjc3MywiaWF0IjoxNzgwMzgyNzczfQ.FQkDiDzNj0tN3ct0RJCnL7s03vstf7uMmeXqqek8sME'
+	// 使用curl中的PSI固定token
+	return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6MjU1LCJ1c2VybmFtZSI6IjE4OTA0MDU2ODAwIiwiYWJvdXRfaWQiOjE5NjUyNTQ3NzQzMjc1MzM1NzAsImlzcyI6InBzaS1zeXN0ZW0iLCJleHAiOjE3ODA1NjY0NTYsIm5iZiI6MTc4MDQ4MDA1NiwiaWF0IjoxNzgwNDgwMDU2fQ.yWTRso0ps-z64iA7nSKK4t3EYOy54CYoLtATyzFxrqI'
 }
 
 /**
@@ -163,7 +157,7 @@ export function getWarehouseList(params = {}) {
 			url: url,
 			method: 'GET',
 			header: {
-				'Authorization': token
+				'Authorization': 'Bearer ' + token
 			},
 			success: (res) => {
 				console.log('【仓库列表】响应状态码:', res.statusCode)

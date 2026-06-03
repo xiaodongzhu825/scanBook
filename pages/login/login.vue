@@ -264,7 +264,6 @@ export default {
 						const data = response.data
 						// 登录成功，保存数据
 						uni.setStorageSync('token', data.access_token)
-						uni.setStorageSync('psi_token', data.access_token)
 						uni.setStorageSync('openId', data.openid || '')
 						uni.setStorageSync('userId', data.userId || '')
 						uni.setStorageSync('phoneNumber', data.phoneNumber || this.formData.account)
