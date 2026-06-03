@@ -1001,7 +1001,24 @@ export default {
 					const list = (productsData.list || []).slice(0, 12)
 					this.productList = list.map(item => {
 						const cleanPrice = parseFloat((item.priceText || '0').replace(/[^\d.]/g, ''))
-						const shippingFee = item.postage && item.postage.shippingList && item.postage.shippingList.length > 0 ? parseFloat(item.postage.shippingList[0].shippingFee || 0) : 0
+						let shippingFee = 0
+						// 多种格式兼容处理运费
+						if (item.postage) {
+							if (typeof item.postage === 'number' || typeof item.postage === 'string') {
+								// 运费直接是数字/字符串
+								shippingFee = parseFloat(item.postage) || 0
+							} else if (item.postage.shippingList && item.postage.shippingList.length > 0) {
+								// 标准格式: postage.shippingList[0].shippingFee
+								shippingFee = parseFloat(item.postage.shippingList[0].shippingFee || 0)
+							} else if (item.postage.shippingFee) {
+								// 扁平格式: postage.shippingFee
+								shippingFee = parseFloat(item.postage.shippingFee || 0)
+							}
+						}
+						// 也检查顶层字段
+						if (shippingFee === 0 && item.shippingFee) {
+							shippingFee = parseFloat(item.shippingFee) || 0
+						}
 						const totalPrice = Number((cleanPrice + shippingFee).toFixed(2))
 						return {
 							image: item.imgBigUrl || '',
