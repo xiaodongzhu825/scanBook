@@ -196,7 +196,7 @@ export function searchProducts(keyword, options = {}) {
 			dataType: 0,
 			keyword: keyword,
 			page: page,
-			userArea: '13003000000'
+			userArea: '1006000000'
 		}
 		if (sortType) {
 			reqData.sortType = sortType
