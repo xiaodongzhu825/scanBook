@@ -136,85 +136,22 @@ function generateSimpleSignedUrl(baseUrl, params = {}) {
 }
 
 /**
- * 获取token（优先从登录缓存获取，失败时尝试自动登录）
+ * 获取PSI系统专用token（硬编码，PSI与业务系统token不互通）
  */
 function getAuthToken() {
-	// 从登录页存储获取
-	const token = uni.getStorageSync('token')
-	if (token) return token
-	// PSI专用key
-	const psiToken = uni.getStorageSync('psi_token')
-	if (psiToken) return psiToken
-	// 硬编码备用
 	return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6MjU1LCJ1c2VybmFtZSI6IjE4OTA0MDU2ODAwIiwiYWJvdXRfaWQiOjE5NjUyNTQ3NzQzMjc1MzM1NzAsImlzcyI6InBzaS1zeXN0ZW0iLCJleHAiOjE3ODA1NjY0NTYsIm5iZiI6MTc4MDQ4MDA1NiwiaWF0IjoxNzgwNDgwMDU2fQ.yWTRso0ps-z64iA7nSKK4t3EYOy54CYoLtATyzFxrqI'
 }
 
 /**
- * 尝试自动登录PSI，返回新token或null
- */
-function autoPsiLogin() {
-	return new Promise((resolve) => {
-		const phone = uni.getStorageSync('phoneNumber') || ''
-		const password = uni.getStorageSync('remembered_password') || ''
-		if (!phone || !password) {
-			resolve(null)
-			return
-		}
-		console.log('【PSI自动登录】尝试使用存储账号', phone)
-		uni.request({
-			url: 'https://api.buzhiyushu.cn/auth/interFaceLogin',
-			method: 'POST',
-			header: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-				'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg=='
-			},
-			data: {
-				clientId: 'cec96a240989d1c6bcd55f86fca702b7',
-				phoneNumber: phone,
-				password: password
-			},
-			success: (res) => {
-				const data = res.data
-				if (data && data.code === 200 && data.data && data.data.access_token) {
-					const newToken = data.data.access_token
-					console.log('【PSI自动登录】成功')
-					uni.setStorageSync('token', newToken)
-					uni.setStorageSync('psi_token', newToken)
-					resolve(newToken)
-				} else {
-					console.error('【PSI自动登录】失败:', JSON.stringify(data))
-					resolve(null)
-				}
-			},
-			fail: (err) => {
-				console.error('【PSI自动登录】网络错误:', JSON.stringify(err))
-				resolve(null)
-			}
-		})
-	})
-}
-
-/**
- * 带自动登录重试的PSI API请求
- * @param {Function} requestFn - 实际发起请求的函数，接收token，返回Promise<响应数据>
- * @param {string} apiName - 接口名称（用于日志）
+ * 带错误提示的PSI API请求（401时弹窗跳转登录页）
  */
 function requestWithRetry(requestFn, apiName) {
 	return requestFn(getAuthToken()).catch((err) => {
 		const errMsg = err.message || String(err)
-		// 只有401/无效令牌才尝试自动登录
+		console.error(`【${apiName}】请求失败:`, errMsg)
 		if (errMsg.includes('401') || errMsg.includes('无效的认证令牌')) {
-			console.log(`【${apiName}】令牌无效，尝试自动登录`)
-			return autoPsiLogin().then((newToken) => {
-				if (newToken) {
-					// 使用新token重试一次
-					return requestFn(newToken)
-				}
-				// 自动登录失败，抛出需要跳转登录页的错误
-				throw new Error('NEED_LOGIN:登录已过期，请重新登录')
-			})
+			throw new Error('NEED_LOGIN:PSI系统登录已过期，请联系管理员')
 		}
-		// 其他错误
 		throw err
 	})
 }

@@ -1137,14 +1137,9 @@ export default {
 				if (errMsg.includes('NEED_LOGIN')) {
 					const displayMsg = errMsg.replace('NEED_LOGIN:', '')
 					uni.showModal({
-						title: '登录已过期',
+						title: '系统提示',
 						content: displayMsg,
-						confirmText: '去登录',
-						success: (res) => {
-							if (res.confirm) {
-								uni.navigateTo({ url: '/pages/login/login' })
-							}
-						}
+						showCancel: false
 					})
 				}
 			} finally {
@@ -1184,14 +1179,9 @@ export default {
 				if (errMsg.includes('NEED_LOGIN')) {
 					const displayMsg = errMsg.replace('NEED_LOGIN:', '')
 					uni.showModal({
-						title: '登录已过期',
+						title: '系统提示',
 						content: displayMsg,
-						confirmText: '去登录',
-						success: (res) => {
-							if (res.confirm) {
-								uni.navigateTo({ url: '/pages/login/login' })
-							}
-						}
+						showCancel: false
 					})
 				}
 				this.popupLocationList = this.popupAllLocationList
