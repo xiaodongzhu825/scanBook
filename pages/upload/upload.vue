@@ -1016,9 +1016,9 @@ export default {
 						bookId: item.id || ''
 					}))
 				}
-				// 市场统计：使用facet接口的真实数据
+				// 市场统计：使用facet接口的真实数据（totalFound为准）
 				this.marketData = {
-					onSale: productsData ? productsData.total : 0,
+					onSale: onSaleFacet ? onSaleFacet.totalFound : (productsData ? productsData.total : 0),
 					old: onSaleFacet ? onSaleFacet.oldCount : 0,
 					new: onSaleFacet ? onSaleFacet.newCount : 0,
 					sold: soldFacet ? (soldFacet.oldCount + soldFacet.newCount) : 0
