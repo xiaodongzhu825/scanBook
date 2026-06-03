@@ -1253,7 +1253,11 @@ export default {
   height: 76rpx;
   padding: 0 16rpx;
   font-size: 28rpx;
+  color: #303133;
   box-sizing: border-box;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .form-input:focus {
@@ -2181,22 +2185,44 @@ export default {
 /* ========== 密码框 ========== */
 .password-wrapper {
   position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .password-input {
-  padding-right: 80rpx !important;
+  flex: 1;
+  padding-right: 90rpx !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* H5浏览器密码框默认眼睛图标隐藏 */
+.password-input::-webkit-credentials-auto-fill-button,
+.password-input::-webkit-reveal,
+.password-input::-ms-reveal {
+  display: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* H5密码框自动填充背景色覆盖 */
+.password-input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000rpx #ffffff inset !important;
+  -webkit-text-fill-color: #303133 !important;
 }
 
 .password-eye {
   position: absolute;
-  right: 0;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
-  width: 72rpx;
-  height: 72rpx;
+  width: 64rpx;
+  height: 64rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10;
 }
 
 /* ========== 眼睛图标 CSS 实现 ========== */
