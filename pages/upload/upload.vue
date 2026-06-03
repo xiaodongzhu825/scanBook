@@ -616,6 +616,7 @@
 
 <script>
 import { getWarehouseList, getLocationList } from '@/utils/api.js'
+import { login as kongfzLogin } from '@/utils/kongfz.js'
 
 export default {
 	data() {
@@ -694,7 +695,8 @@ export default {
 			loginPassword: '',
 			showPassword: false,
 			rememberPassword: false,
-			blockedList: ''
+			blockedList: '',
+			kongfzToken: ''
 		}
 	},
 
@@ -703,6 +705,21 @@ export default {
 		if (options && options.tab) {
 			this.currentTab = options.tab
 			this.swiperIndex = options.tab === 'no-isbn' ? 1 : 0
+		}
+		// 恢复登录状态
+		const savedToken = uni.getStorageSync('kongfz_phpsessid')
+		const savedName = uni.getStorageSync('kongfz_shop_name')
+		if (savedToken && savedName) {
+			this.kongfzToken = savedToken
+			this.shopName = savedName
+			this.shopRegion = uni.getStorageSync('kongfz_shop_region') || '孔夫子旧书网'
+			this.isLoggedIn = true
+		}
+		// 恢复记住的账号
+		const remembered = uni.getStorageSync('kongfz_remembered_account')
+		if (remembered) {
+			this.loginAccount = remembered
+			this.rememberPassword = true
 		}
 	},
 
@@ -995,16 +1012,40 @@ export default {
 			}, 1500)
 		},
 
-		// 登录
+		// 登录 - 接入孔夫子真实登录
 		handleLogin() {
-			uni.showLoading({ title: '登录中...' })
-			setTimeout(() => {
+			if (!this.loginAccount) {
+				uni.showToast({ title: '请输入账号', icon: 'none' })
+				return
+			}
+			if (!this.loginPassword) {
+				uni.showToast({ title: '请输入密码', icon: 'none' })
+				return
+			}
+			uni.showLoading({ title: '登录中...', mask: true })
+			kongfzLogin(this.loginAccount, this.loginPassword).then(res => {
 				uni.hideLoading()
-				this.isLoggedIn = true
-				this.shopName = '测试店铺'
-				this.shopRegion = '北京'
-				uni.showToast({ title: '登录成功', icon: 'success' })
-			}, 1000)
+				if (res.success) {
+					this.kongfzToken = res.token
+					this.isLoggedIn = true
+					this.shopName = this.loginAccount
+					this.shopRegion = '孔夫子旧书网'
+					// 持久化登录状态
+					uni.setStorageSync('kongfz_phpsessid', res.token)
+					uni.setStorageSync('kongfz_shop_name', this.loginAccount)
+					uni.setStorageSync('kongfz_shop_region', '孔夫子旧书网')
+					if (this.rememberPassword) {
+						uni.setStorageSync('kongfz_remembered_account', this.loginAccount)
+					}
+					uni.showToast({ title: '登录成功', icon: 'success' })
+				} else {
+					uni.showToast({ title: res.message || '登录失败', icon: 'none' })
+				}
+			}).catch(err => {
+				uni.hideLoading()
+				uni.showToast({ title: '网络异常，请重试', icon: 'none' })
+				console.error('登录异常:', err)
+			})
 		},
 
 		handleLogout() {
@@ -1016,6 +1057,10 @@ export default {
 						this.isLoggedIn = false
 						this.shopName = ''
 						this.shopRegion = ''
+						this.kongfzToken = ''
+						uni.removeStorageSync('kongfz_phpsessid')
+						uni.removeStorageSync('kongfz_shop_name')
+						uni.removeStorageSync('kongfz_shop_region')
 					}
 				}
 			})
