@@ -205,8 +205,39 @@ export function getLocationList(params = {}) {
 	})
 }
 
+/**
+ * 图书中心 - 根据ISBN查询图书信息
+ */
+export function searchBookByIsbn(isbn) {
+	return new Promise((resolve, reject) => {
+		uni.request({
+			url: `https://book.center.yushutx.com/api/es/searchByISBN?isbn=${isbn}`,
+			method: 'GET',
+			header: {
+				'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg==',
+				'Accept': '*/*',
+				'User-Agent': 'Apifox/1.0.0 (https://apifox.com)'
+			},
+			success: (res) => {
+				if (res.statusCode === 200 && res.data && res.data.data) {
+					resolve(res.data.data)
+				} else if (res.statusCode === 200 && res.data && res.data.code === 0 && res.data.data) {
+					resolve(res.data.data)
+				} else {
+					reject(new Error('未查询到图书信息'))
+				}
+			},
+			fail: (err) => {
+				console.error('图书中心查询失败:', err)
+				reject(err)
+			}
+		})
+	})
+}
+
 export default {
 	getWarehouseList,
 	getLocationList,
+	searchBookByIsbn,
 	generateSignedUrl
 }

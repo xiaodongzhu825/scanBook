@@ -678,10 +678,15 @@
 							<text class="wh-tab-text">{{ w.name }}</text>
 						</view>
 					</scroll-view>
+					<!-- 货位搜索 -->
+					<view class="wh-search-bar">
+						<input class="wh-search-input" v-model="popupLocationSearch" placeholder="搜索货位编码/名称" @input="onLocationSearchInput" />
+						<text class="wh-search-clear" v-if="popupLocationSearch" @click="clearLocationSearch">✕</text>
+					</view>
 					<scroll-view class="wh-location-list" scroll-y @scrolltolower="loadMorePopupLocation">
 						<view 
 							class="wh-loc-item" 
-							v-for="loc in popupLocationList" 
+							v-for="loc in filteredLocationList" 
 							:key="loc.id"
 							:class="{ active: popupSelectedLoc && popupSelectedLoc.id === loc.id }"
 							@click="selectPopupLocation(loc)"
@@ -696,7 +701,7 @@
 						<view class="popup-hint-end" v-if="!popupLocHasMore && popupLocationList.length > 0">
 							<text>— 已全部加载 —</text>
 						</view>
-						<view class="popup-hint" v-if="popupLocationList.length === 0 && !popupLoadingLocation">
+						<view class="popup-hint" v-if="filteredLocationList.length === 0 && !popupLoadingLocation">
 							<text>暂无货位</text>
 						</view>
 						<view class="popup-hint" v-if="popupLoadingLocation">
@@ -715,7 +720,7 @@
 </template>
 
 <script>
-import { getWarehouseList, getLocationList } from '@/utils/api.js'
+import { getWarehouseList, getLocationList, searchBookByIsbn } from '@/utils/api.js'
 import { login as kongfzLogin } from '@/utils/kongfz.js'
 
 export default {
@@ -786,6 +791,8 @@ export default {
 			popupLocPageSize: 20,
 			popupLocHasMore: true,
 			popupLocLoadingMore: false,
+			popupLocationSearch: '',
+			popupAllLocationList: [],
 			
 			// 登录
 			isLoggedIn: false,
@@ -855,6 +862,15 @@ export default {
 			const arr = []
 			for (let i = 2; i <= 12; i++) arr.push(i)
 			return arr
+		},
+		filteredLocationList() {
+			if (!this.popupLocationSearch) return this.popupLocationList
+			const kw = this.popupLocationSearch.toLowerCase()
+			return this.popupAllLocationList.filter(loc => {
+				const code = (loc.code || '').toLowerCase()
+				const name = (loc.name || '').toLowerCase()
+				return code.includes(kw) || name.includes(kw)
+			})
 		}
 	},
 
@@ -894,17 +910,54 @@ export default {
 			})
 		},
 
-		// ISBN搜索
+		// ISBN搜索 - 查询图书中心 + 孔网市场
 		searchISBN() {
 			if (!this.isbn) {
 				uni.showToast({ title: '请输入ISBN', icon: 'none' })
 				return
 			}
 			this.isLoading = true
+			let bookDetail = null
+			let marketDone = false
+
+			// 1. 查询图书中心 - 获取图书详情
+			searchBookByIsbn(this.isbn).then(data => {
+				bookDetail = data
+				// 更新表单字段
+				if (data.book_name) this.bookName = data.book_name
+				if (data.author) this.author = data.author
+				if (data.publisher) this.publisher = data.publisher
+				// 定价：fix_price 单位为分，转为元
+				if (data.fix_price && data.fix_price > 0) {
+					this.fixPrice = (data.fix_price / 100).toFixed(2)
+				}
+				if (data.publication_time) this.printTime = data.publication_time
+				if (data.binding_layout) this.noIsbnFormat = data.binding_layout
+				console.log('图书中心查询成功:', data)
+			}).catch(err => {
+				console.log('图书中心查询无结果:', err)
+			})
+
+			// 2. 模拟孔网市场数据（后续接入真实API）
 			setTimeout(() => {
 				this.isLoading = false
-				uni.showToast({ title: '搜索完成', icon: 'success' })
-			}, 1000)
+				marketDone = true
+				// 模拟市场数据
+				this.marketData = {
+					onSale: Math.floor(Math.random() * 50) + 10,
+					old: Math.floor(Math.random() * 30) + 5,
+					new: Math.floor(Math.random() * 20) + 1,
+					sold: Math.floor(Math.random() * 10) + 1
+				}
+				// 模拟在售商品
+				this.productList = [
+					{ image: '', totalPrice: '28.00', bookPrice: '25.00', shippingFee: '3.00', condition: '九品', shopName: '孔网书店' },
+					{ image: '', totalPrice: '35.00', bookPrice: '32.00', shippingFee: '3.00', condition: '九五品', shopName: '旧书坊' },
+					{ image: '', totalPrice: '22.00', bookPrice: '20.00', shippingFee: '2.00', condition: '八五品', shopName: '书香阁' },
+					{ image: '', totalPrice: '30.00', bookPrice: '28.00', shippingFee: '2.00', condition: '九品', shopName: '古旧书店' }
+				]
+				if (!this.isLoading) { /* already hidden */ }
+			}, 1500)
 		},
 
 		// 品相选择
@@ -983,21 +1036,25 @@ export default {
 			this.popupLoadingLocation = true
 			this.popupLocPage = 1
 			this.popupLocHasMore = true
+			this.popupAllLocationList = []
 			try {
 				const res = await getLocationList({
 					warehouse_id: warehouseId, type: 1, status: 1,
-					page: 1, page_size: this.popupLocPageSize
+					page: 1, page_size: 999
 				})
 				if (res.code === 0 && res.data && res.data.list) {
 					this.popupLocationList = res.data.list
+					this.popupAllLocationList = res.data.list
 					const total = res.data.total || 0
 					this.popupLocHasMore = this.popupLocPage * this.popupLocPageSize < total
 				} else {
-					this.popupLocationList = []
+					const list = Array.isArray(res.data) ? res.data : []
+					this.popupLocationList = list
+					this.popupAllLocationList = list
 					this.popupLocHasMore = false
 				}
 			} catch (e) {
-				this.popupLocationList = []
+				this.popupLocationList = this.popupAllLocationList
 				this.popupLocHasMore = false
 			} finally {
 				this.popupLoadingLocation = false
@@ -1061,6 +1118,7 @@ export default {
 						this.popupLocHasMore = false
 					} else {
 						this.popupLocationList = [...this.popupLocationList, ...newList]
+						this.popupAllLocationList = [...this.popupAllLocationList, ...newList]
 						const total = res.data.total || 0
 						this.popupLocHasMore = this.popupLocPage * this.popupLocPageSize < total
 					}
@@ -1072,6 +1130,25 @@ export default {
 			}).finally(() => {
 				this.popupLocLoadingMore = false
 			})
+		},
+
+		// 货位搜索
+		onLocationSearchInput() {
+			if (this.popupLocationSearch) {
+				const kw = this.popupLocationSearch.toLowerCase()
+				this.popupLocationList = this.popupAllLocationList.filter(loc => {
+					const code = (loc.code || '').toLowerCase()
+					const name = (loc.name || '').toLowerCase()
+					return code.includes(kw) || name.includes(kw)
+				})
+			} else {
+				this.popupLocationList = [...this.popupAllLocationList]
+			}
+		},
+
+		clearLocationSearch() {
+			this.popupLocationSearch = ''
+			this.popupLocationList = [...this.popupAllLocationList]
 		},
 
 		// 比价切换
@@ -2109,6 +2186,50 @@ export default {
 .wh-tab.active .wh-tab-text {
   color: #409eff;
   font-weight: 600;
+}
+
+/* ========== 仓库货位搜索栏 ========== */
+.wh-search-bar {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 2rpx solid #e4e7ed;
+  padding: 8rpx 16rpx;
+  position: relative;
+}
+
+.wh-search-input {
+  flex: 1;
+  background: #f0f2f5;
+  border: none;
+  border-radius: 8rpx;
+  height: 56rpx;
+  padding: 0 60rpx 0 16rpx;
+  font-size: 26rpx;
+  color: #303133;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.wh-search-input::placeholder {
+  color: #c0c4cc;
+}
+
+.wh-search-clear {
+  position: absolute;
+  right: 24rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: #c0c4cc;
+  color: #ffffff;
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ========== 仓库货位列表 ========== */
