@@ -934,7 +934,7 @@ export default {
 			})
 
 			// 2. 搜索孔夫子 - 获取在售商品信息
-			searchProducts(this.isbn).then(data => {
+			searchProducts(this.isbn, { phpsessid: this.kongfzToken || '' }).then(data => {
 				this.isLoading = false
 				if (data && data.total > 0) {
 					// 市场统计
@@ -947,16 +947,16 @@ export default {
 					// 在售商品列表（最多12条）
 					const list = (data.list || []).slice(0, 12)
 					this.productList = list.map(item => ({
-						image: '',
-						totalPrice: item.prodNum + '本在售',
+						image: item.imgBigUrl || '',
+						totalPrice: item.priceText || '',
 						bookPrice: '',
-						shippingFee: '',
-						condition: item.binding || '',
-						shopName: item.press || '',
-						bookName: item.bookName || '',
+						shippingFee: item.postage && item.postage.shippingList && item.postage.shippingList.length > 0 ? item.postage.shippingList[0].shippingFee : '',
+						condition: item.qualityText || '',
+						shopName: item.shopName || '',
+						bookName: item.title || '',
 						author: item.author || '',
-						pubDate: item.pubDate || '',
-						bookId: item.bookId || ''
+						pubDate: item.pubDateText || '',
+						bookId: item.id || ''
 					}))
 				} else {
 					this.marketData = { onSale: 0, old: 0, new: 0, sold: 0 }
