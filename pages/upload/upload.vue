@@ -722,7 +722,7 @@ export default {
 			printTime: '',
 			price: '',
 			stock: 1,
-			selectedCondition: '',
+			selectedCondition: '六品',
 			conditionList: ['六品', '七品', '八品', '八五品', '九品', '九五品', '全新'],
 			photoList: [],
 			isbnSelectedArea: '',
@@ -938,12 +938,9 @@ export default {
 
 		// ISBN扫码
 		scanISBN() {
-			// 必须已登录孔网且选择了品相，否则直接弹窗不打开摄像头
-			if (!this.isLoggedIn || !this.selectedCondition) {
-				const msg = []
-				if (!this.isLoggedIn) msg.push('登录孔网账号')
-				if (!this.selectedCondition) msg.push('选择品相')
-				uni.showToast({ title: '请先' + msg.join('和'), icon: 'none' })
+			// 必须已登录孔网，否则直接弹窗不打开摄像头
+			if (!this.isLoggedIn) {
+				uni.showToast({ title: '请先登录孔网账号', icon: 'none' })
 				return
 			}
 			uni.scanCode({
@@ -960,12 +957,9 @@ export default {
 
 		// ISBN搜索 - 查询图书中心 + 孔网市场
 		searchISBN() {
-			// 必须已登录孔网且选择了品相
-			if (!this.isLoggedIn || !this.selectedCondition) {
-				const msg = []
-				if (!this.isLoggedIn) msg.push('登录孔网账号')
-				if (!this.selectedCondition) msg.push('选择品相')
-				uni.showToast({ title: '请先' + msg.join('和'), icon: 'none' })
+			// 必须已登录孔网
+			if (!this.isLoggedIn) {
+				uni.showToast({ title: '请先登录孔网账号', icon: 'none' })
 				return
 			}
 			let keyword = ''
@@ -1312,6 +1306,16 @@ export default {
 			const warehouseData = this.currentTab === 'isbn' ? this.isbnWarehouseData : this.noIsbnWarehouseData
 			if (!warehouseData) {
 				uni.showToast({ title: '请选择货区', icon: 'none' })
+				return
+			}
+
+			// ISBN与售价不能为空
+			if (!this.isbn) {
+				uni.showToast({ title: 'ISBN不能为空', icon: 'none' })
+				return
+			}
+			if (!this.price) {
+				uni.showToast({ title: '售价不能为空', icon: 'none' })
 				return
 			}
 
