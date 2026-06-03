@@ -918,9 +918,12 @@ export default {
 
 		// ISBN搜索 - 查询图书中心 + 孔网市场
 		searchISBN() {
-			// 未选品相且未登录孔网则禁止搜索
-			if (!this.selectedCondition && !this.isLoggedIn) {
-				uni.showToast({ title: '请选择品相或登录孔网账号', icon: 'none' })
+			// 必须已登录孔网且选择了品相
+			if (!this.isLoggedIn || !this.selectedCondition) {
+				const msg = []
+				if (!this.isLoggedIn) msg.push('登录孔网账号')
+				if (!this.selectedCondition) msg.push('选择品相')
+				uni.showToast({ title: '请先' + msg.join('和'), icon: 'none' })
 				return
 			}
 			let keyword = ''
