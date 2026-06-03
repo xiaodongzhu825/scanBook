@@ -979,9 +979,11 @@ export default {
 
 			// 2. 搜索孔夫子 - 获取在售商品信息
 			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
+			// 排序参数：5=价格低到高 7=综合
+			const sortType = this.sortBy !== 'total' && this.sortBy !== 'book' ? '' : '5'
 			// 并行请求：商品列表 + 品相统计（在售）+ 品相统计（已售）
 			Promise.all([
-				searchProducts(keyword, { phpsessid }),
+				searchProducts(keyword, { phpsessid, sortType }),
 				searchFacet(keyword, { phpsessid, dataType: 0 }),
 				searchFacet(keyword, { phpsessid, dataType: 1 })
 			]).then(([productsData, onSaleFacet, soldFacet]) => {
@@ -1212,9 +1214,10 @@ export default {
 			this.searchISBN()
 		},
 
-		// 排序
+		// 排序 - 切换后重新请求孔夫子接口
 		sortProducts(by) {
 			this.sortBy = by
+			this.searchISBN()
 		},
 
 		// 筛选
