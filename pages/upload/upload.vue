@@ -840,6 +840,28 @@ export default {
 			}
 			return this.selectedCondition ? (map[this.selectedCondition] || '') : ''
 		},
+		calculatedPrice() {
+			const sorted = this.sortedProductList
+			if (sorted.length === 0) return 0
+			const shipping = Number(this.shippingFee) || 0
+			const discount = Number(this.priceDiscount) || 0
+			const minPrice = Number(this.minBookPrice) || 0
+			let result = 0
+			if (this.priceMode === 'lowest') {
+				const idx = Math.min((Number(this.lowestRank) || 1) - 1, sorted.length - 1)
+				const selectedTotal = parseFloat(sorted[idx].totalPrice) || 0
+				result = selectedTotal - shipping - discount
+			} else {
+				const count = Math.min(Number(this.averageCount) || 2, sorted.length)
+				let sum = 0
+				for (let i = 0; i < count; i++) {
+					sum += parseFloat(sorted[i].totalPrice) || 0
+				}
+				result = (sum / count) - shipping - discount
+			}
+			if (result <= minPrice) return minPrice
+			return parseFloat(result.toFixed(2))
+		},
 		sortedProductList() {
 			let list = [...this.productList]
 			// 筛选（精确匹配，同zhizhu）
@@ -1026,6 +1048,12 @@ export default {
 							author: item.author || '',
 							pubDate: item.pubDateText || '',
 							bookId: item.id || ''
+						}
+					})
+					// 自动填充计算价格
+					this.$nextTick(() => {
+						if (this.calculatedPrice > 0) {
+							this.price = String(this.calculatedPrice)
 						}
 					})
 				}
