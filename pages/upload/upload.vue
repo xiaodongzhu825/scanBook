@@ -64,35 +64,20 @@
 							<input class="form-input" v-model="bookName" placeholder="请输入书名"/>
 						</view>
 
-						<!-- 作者 & 出版社 -->
+						<!-- 品相 -->
 						<view class="form-section">
 							<view class="field-label">
-								<text class="label-text">作者 & 出版社</text>
+								<text class="label-text">品相</text>
 							</view>
-							<view class="inline-fields" style="flex:1;">
-								<view class="inline-field">
-									<input class="form-input" v-model="author" placeholder="作者" style="flex:1;"/>
-								</view>
-								<view class="inline-field">
-									<input class="form-input" v-model="publisher" placeholder="出版社" style="flex:1;"/>
-								</view>
-							</view>
-						</view>
-
-						<!-- 定价 & 印刷时间 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">定价 & 印刷时间</text>
-							</view>
-							<view class="inline-fields" style="flex:1;">
-								<view class="inline-field">
-									<view class="price-input-box" style="flex:1;">
-										<text class="price-symbol">¥</text>
-										<input class="price-input" v-model="fixPrice" type="digit" placeholder="定价"/>
-									</view>
-								</view>
-								<view class="inline-field">
-									<input class="form-input" v-model="printTime" placeholder="印刷时间" style="flex:1;"/>
+							<view class="condition-list">
+								<view
+									class="condition-item"
+									v-for="(item, index) in conditionList"
+									:key="index"
+									:class="{ active: selectedCondition === item }"
+									@click="selectCondition(item)"
+								>
+									<text class="condition-text">{{ item }}</text>
 								</view>
 							</view>
 						</view>
@@ -111,24 +96,6 @@
 								</view>
 								<view class="inline-field">
 									<input class="form-input" v-model="stock" type="number" placeholder="库存" style="flex:1;"/>
-								</view>
-							</view>
-						</view>
-
-						<!-- 品相 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">品相</text>
-							</view>
-							<view class="condition-list">
-								<view
-									class="condition-item"
-									v-for="(item, index) in conditionList"
-									:key="index"
-									:class="{ active: selectedCondition === item }"
-									@click="selectCondition(item)"
-								>
-									<text class="condition-text">{{ item }}</text>
 								</view>
 							</view>
 						</view>
@@ -951,6 +918,11 @@ export default {
 
 		// ISBN搜索 - 查询图书中心 + 孔网市场
 		searchISBN() {
+			// 未选品相且未登录孔网则禁止搜索
+			if (!this.selectedCondition && !this.isLoggedIn) {
+				uni.showToast({ title: '请选择品相或登录孔网账号', icon: 'none' })
+				return
+			}
 			let keyword = ''
 			if (this.compareType === 'isbn') {
 				if (!this.isbn) {
