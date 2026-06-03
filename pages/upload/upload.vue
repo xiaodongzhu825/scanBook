@@ -620,44 +620,20 @@
 				</view>
 				<view class="popup-body">
 					<view class="filter-group">
-						<text class="group-title">品相</text>
-						<view class="tag-list">
-							<view 
-								class="tag-item" 
-								v-for="(item, index) in conditionList" 
-								:key="'c'+index"
-								:class="{ active: filterCondition === item }"
-								@click="filterCondition = filterCondition === item ? '' : item"
-							>
-								<text class="tag-text">{{ item }}</text>
-							</view>
-						</view>
-					</view>
-					<view class="filter-group" v-if="filterPublishers.length > 0">
 						<text class="group-title">出版社</text>
-						<view class="tag-list">
-							<view 
-								class="tag-item" 
-								v-for="(item, index) in filterPublishers" 
-								:key="'p'+index"
-								:class="{ active: filterPress === item }"
-								@click="filterPress = filterPress === item ? '' : item"
-							>
-								<text class="tag-text">{{ item }}</text>
+						<input class="filter-search-input" v-model="filterPress" placeholder="输入出版社名称筛选" @input="onFilterPressInput" />
+						<view class="filter-suggest" v-if="filterPress && filterPressSuggestions.length > 0">
+							<view class="suggest-item" v-for="(item, idx) in filterPressSuggestions" :key="'ps'+idx" @click="selectFilterPress(item)">
+								<text class="suggest-text">{{ item }}</text>
 							</view>
 						</view>
 					</view>
-					<view class="filter-group" v-if="filterAuthors.length > 0">
+					<view class="filter-group">
 						<text class="group-title">作者</text>
-						<view class="tag-list">
-							<view 
-								class="tag-item" 
-								v-for="(item, index) in filterAuthors" 
-								:key="'a'+index"
-								:class="{ active: filterAuthor === item }"
-								@click="filterAuthor = filterAuthor === item ? '' : item"
-							>
-								<text class="tag-text">{{ item }}</text>
+						<input class="filter-search-input" v-model="filterAuthor" placeholder="输入作者名称筛选" @input="onFilterAuthorInput" />
+						<view class="filter-suggest" v-if="filterAuthor && filterAuthorSuggestions.length > 0">
+							<view class="suggest-item" v-for="(item, idx) in filterAuthorSuggestions" :key="'as'+idx" @click="selectFilterAuthor(item)">
+								<text class="suggest-text">{{ item }}</text>
 							</view>
 						</view>
 					</view>
@@ -805,9 +781,10 @@ export default {
 			
 			// 筛选
 			showFilterPopup: false,
-			filterCondition: '',
 			filterPress: '',
 			filterAuthor: '',
+			filterPressSuggestions: [],
+			filterAuthorSuggestions: [],
 			
 			// 仓库弹窗
 			showWarehousePicker: false,
@@ -878,15 +855,12 @@ export default {
 	computed: {
 		sortedProductList() {
 			let list = [...this.productList]
-			// 筛选
-			if (this.filterCondition) {
-				list = list.filter(item => item.condition === this.filterCondition)
-			}
+			// 筛选（模糊匹配）
 			if (this.filterPress) {
-				list = list.filter(item => item.shopName === this.filterPress)
+				list = list.filter(item => (item.shopName || '').toLowerCase().includes(this.filterPress.toLowerCase()))
 			}
 			if (this.filterAuthor) {
-				list = list.filter(item => item.author === this.filterAuthor)
+				list = list.filter(item => (item.author || '').toLowerCase().includes(this.filterAuthor.toLowerCase()))
 			}
 			// 排序
 			if (this.sortBy === 'total') {
@@ -969,35 +943,47 @@ export default {
 
 		// ISBN搜索 - 查询图书中心 + 孔网市场
 		searchISBN() {
-			if (!this.isbn) {
-				uni.showToast({ title: '请输入ISBN', icon: 'none' })
-				return
+			let keyword = ''
+			if (this.compareType === 'isbn') {
+				if (!this.isbn) {
+					uni.showToast({ title: '请输入ISBN', icon: 'none' })
+					return
+				}
+				keyword = this.isbn
+			} else {
+				if (!this.bookName) {
+					uni.showToast({ title: '请输入书名', icon: 'none' })
+					return
+				}
+				keyword = this.bookName
 			}
 			this.isLoading = true
 			this.productList = []
 
-			// 1. 查询图书中心 - 获取图书详情
-			searchBookByIsbn(this.isbn).then(data => {
-				if (data.book_name) this.bookName = data.book_name
-				if (data.author) this.author = data.author
-				if (data.publisher) this.publisher = data.publisher
-				if (data.fix_price && data.fix_price > 0) {
-					this.fixPrice = (data.fix_price / 100).toFixed(2)
-				}
-				if (data.publication_time) this.printTime = data.publication_time
-				if (data.binding_layout) this.noIsbnFormat = data.binding_layout
-				console.log('图书中心查询成功:', data)
-			}).catch(err => {
-				console.log('图书中心查询无结果:', err)
-			})
+			// 1. 查询图书中心 - 获取图书详情（仅ISBN模式）
+			if (this.compareType === 'isbn') {
+				searchBookByIsbn(this.isbn).then(data => {
+					if (data.book_name) this.bookName = data.book_name
+					if (data.author) this.author = data.author
+					if (data.publisher) this.publisher = data.publisher
+					if (data.fix_price && data.fix_price > 0) {
+						this.fixPrice = (data.fix_price / 100).toFixed(2)
+					}
+					if (data.publication_time) this.printTime = data.publication_time
+					if (data.binding_layout) this.noIsbnFormat = data.binding_layout
+					console.log('图书中心查询成功:', data)
+				}).catch(err => {
+					console.log('图书中心查询无结果:', err)
+				})
+			}
 
 			// 2. 搜索孔夫子 - 获取在售商品信息
 			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
 			// 并行请求：商品列表 + 品相统计（在售）+ 品相统计（已售）
 			Promise.all([
-				searchProducts(this.isbn, { phpsessid }),
-				searchFacet(this.isbn, { phpsessid, dataType: 0 }),
-				searchFacet(this.isbn, { phpsessid, dataType: 1 })
+				searchProducts(keyword, { phpsessid }),
+				searchFacet(keyword, { phpsessid, dataType: 0 }),
+				searchFacet(keyword, { phpsessid, dataType: 1 })
 			]).then(([productsData, onSaleFacet, soldFacet]) => {
 				this.isLoading = false
 				if (productsData && productsData.total > 0) {
@@ -1236,7 +1222,6 @@ export default {
 		},
 
 		resetFilter() {
-			this.filterCondition = ''
 			this.filterPress = ''
 			this.filterAuthor = ''
 		},
@@ -1261,6 +1246,28 @@ export default {
 			if (urls.length > 0) {
 				uni.previewImage({ urls, current: index })
 			}
+		},
+
+		// 筛选 - 出版社输入提示
+		onFilterPressInput() {
+			const kw = this.filterPress.toLowerCase()
+			this.filterPressSuggestions = this.filterPublishers.filter(p => p.toLowerCase().includes(kw)).slice(0, 10)
+		},
+
+		selectFilterPress(val) {
+			this.filterPress = val
+			this.filterPressSuggestions = []
+		},
+
+		// 筛选 - 作者输入提示
+		onFilterAuthorInput() {
+			const kw = this.filterAuthor.toLowerCase()
+			this.filterAuthorSuggestions = this.filterAuthors.filter(a => a.toLowerCase().includes(kw)).slice(0, 10)
+		},
+
+		selectFilterAuthor(val) {
+			this.filterAuthor = val
+			this.filterAuthorSuggestions = []
 		},
 
 		// 提交上传
@@ -2153,6 +2160,57 @@ export default {
 
 .tag-item.active .tag-text {
   color: #409eff;
+}
+
+/* 筛选弹窗 - 搜索输入框 */
+.filter-search-input {
+  background: #f5f6fa;
+  border: 2rpx solid #dcdfe6;
+  border-radius: 8rpx;
+  height: 64rpx;
+  padding: 0 16rpx;
+  font-size: 26rpx;
+  color: #303133;
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.filter-search-input:focus {
+  border-color: #409eff;
+  outline: none;
+}
+
+.filter-search-input::placeholder {
+  color: #c0c4cc;
+}
+
+.filter-suggest {
+  background: #ffffff;
+  border: 2rpx solid #e4e7ed;
+  border-radius: 8rpx;
+  margin-top: 6rpx;
+  max-height: 300rpx;
+  overflow-y: auto;
+}
+
+.suggest-item {
+  padding: 16rpx 20rpx;
+  border-bottom: 2rpx solid #f0f2f5;
+}
+
+.suggest-item:last-child {
+  border-bottom: none;
+}
+
+.suggest-text {
+  font-size: 26rpx;
+  color: #303133;
+}
+
+.suggest-item:active {
+  background-color: #ecf5ff;
 }
 
 .popup-footer {
