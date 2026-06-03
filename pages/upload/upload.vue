@@ -721,7 +721,7 @@ export default {
 			fixPrice: '',
 			printTime: '',
 			price: '',
-			stock: '',
+			stock: 1,
 			selectedCondition: '',
 			conditionList: ['六品', '七品', '八品', '八五品', '九品', '九五品', '全新'],
 			photoList: [],
@@ -828,6 +828,18 @@ export default {
 	},
 
 	computed: {
+		conditionValue() {
+			const map = {
+				'全新': '100~',
+				'九五品': '95~',
+				'九品': '90~',
+				'八五品': '85~',
+				'八品': '80~',
+				'七品': '70~',
+				'六品': '60~'
+			}
+			return this.selectedCondition ? (map[this.selectedCondition] || '') : ''
+		},
 		sortedProductList() {
 			let list = [...this.productList]
 			// 筛选（精确匹配，同zhizhu）
@@ -974,7 +986,7 @@ export default {
 			const sortType = this.sortBy === 'book' ? '5' : '7'
 			// 并行请求：商品列表 + 品相统计（在售）+ 品相统计（已售）
 			Promise.all([
-				searchProducts(keyword, { phpsessid, sortType }),
+				searchProducts(keyword, { phpsessid, sortType, quality: this.conditionValue }),
 				searchFacet(keyword, { phpsessid, dataType: 0 }),
 				searchFacet(keyword, { phpsessid, dataType: 1 })
 			]).then(([productsData, onSaleFacet, soldFacet]) => {

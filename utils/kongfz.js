@@ -190,7 +190,7 @@ export function fetchItems(token, params = {}, onProgress) {
  * list中每项: {id, title, author, press, priceText, imgBigUrl, shopName, qualityText, pubDateText, postage}
  */
 export function searchProducts(keyword, options = {}) {
-	const { phpsessid = '', page = 1, sortType = '' } = options
+	const { phpsessid = '', page = 1, sortType = '', quality = '' } = options
 	return new Promise((resolve, reject) => {
 		const reqData = {
 			dataType: 0,
@@ -198,9 +198,18 @@ export function searchProducts(keyword, options = {}) {
 			page: page,
 			userArea: '1006000000'
 		}
+		const actionPaths = []
 		if (sortType) {
 			reqData.sortType = sortType
-			reqData.actionPath = 'sortType'
+			actionPaths.push('sortType')
+		}
+		if (quality) {
+			reqData.quality = quality
+			reqData.quaSelect = '2'
+			actionPaths.push('quality')
+		}
+		if (actionPaths.length > 0) {
+			reqData.actionPath = actionPaths.join(',')
 		}
 		uni.request({
 			url: 'https://search.kongfz.com/pc-gw/search-web/client/pc/product/keyword/list',
