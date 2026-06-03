@@ -200,6 +200,7 @@ export function searchProducts(keyword, options = {}) {
 		}
 		if (sortType) {
 			reqData.sortType = sortType
+			reqData.actionPath = 'sortType'
 		}
 		uni.request({
 			url: 'https://search.kongfz.com/pc-gw/search-web/client/pc/product/keyword/list',
