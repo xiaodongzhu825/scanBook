@@ -58,7 +58,10 @@
 			"path": "pages/upload/scan-isbn",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationStyle": "custom"
+				"navigationStyle": "custom",
+				"app-plus": {
+					"render": "native"
+				}
 			}
 		}
 	],
