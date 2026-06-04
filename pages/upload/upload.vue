@@ -824,6 +824,25 @@ export default {
 		this.loadSavedAccounts()
 		// 恢复定价策略配置
 		this.loadPriceConfig()
+		// 恢复选择的仓库货位
+		const savedWhData = uni.getStorageSync('selectedWarehouseData')
+		if (savedWhData) {
+			const locationText = savedWhData.warehouseName + ' - ' + savedWhData.locationCode
+			const whData = {
+				warehouseId: savedWhData.warehouseId,
+				warehouseName: savedWhData.warehouseName,
+				warehouseCode: savedWhData.warehouseCode,
+				locationId: savedWhData.locationId,
+				locationName: savedWhData.locationName,
+				locationCode: savedWhData.locationCode,
+				code: savedWhData.locationCode,
+				name: savedWhData.locationName
+			}
+			this.isbnSelectedArea = locationText
+			this.isbnWarehouseData = whData
+			this.noIsbnSelectedArea = locationText
+			this.noIsbnWarehouseData = whData
+		}
 	},
 
 	computed: {
