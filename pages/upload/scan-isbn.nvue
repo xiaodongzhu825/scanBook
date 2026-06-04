@@ -1,6 +1,6 @@
 <template>
 	<view class="page">
-		<view ref="barcodeContainer" class="barcode-container"></view>
+		<view id="barcodeContainer" class="barcode-container"></view>
 		<view class="close-btn" @click="goBack">
 			<text class="close-icon">✕</text>
 		</view>
@@ -23,7 +23,7 @@
 		},
 		methods: {
 			initBarcode() {
-				if (!window.plus) {
+				if (typeof plus === 'undefined') {
 					uni.showToast({ title: '扫码初始化失败', icon: 'none' })
 					return
 				}
