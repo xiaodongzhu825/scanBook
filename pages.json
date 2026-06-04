@@ -53,6 +53,16 @@
 			"style": {
 				"navigationBarTitleText": "图书上传"
 			}
+		},
+		{
+			"path": "pages/upload/scan-isbn",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationStyle": "custom",
+				"app-plus": {
+					"render": "native"
+				}
+			}
 		}
 	],
 	"globalStyle": {

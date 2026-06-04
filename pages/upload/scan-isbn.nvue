@@ -1,0 +1,91 @@
+<template>
+	<view class="page">
+		<barcode class="barcode" ref="barcode" autostart="true" background="rgba(0,0,0,0)" frameColor="transparent" scanbarColor="transparent" :filters="[1,2,5,6,7,8,9,10,11]" @marked="onMarked" @error="onError"></barcode>
+		<!-- 返回按钮 -->
+		<view class="close-btn" @click="goBack">
+			<text class="close-icon">✕</text>
+		</view>
+		<!-- 底部提示 -->
+		<view class="tip">
+			<text class="tip-text">对准条码自动识别</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				scanned: false
+			}
+		},
+		onUnload() {
+			this.$refs.barcode && this.$refs.barcode.cancel()
+		},
+		methods: {
+			onMarked(e) {
+				if (this.scanned) return
+				this.scanned = true
+				const code = e.detail && (e.detail.message || '')
+				if (code && code.length === 13) {
+					// 发送结果回上传页面
+					uni.$emit('scan-isbn-result', code)
+					uni.navigateBack()
+				} else {
+					this.scanned = false
+				}
+			},
+			onError() {
+				uni.showToast({ title: '扫码异常', icon: 'none' })
+				uni.navigateBack()
+			},
+			goBack() {
+				this.$refs.barcode && this.$refs.barcode.cancel()
+				uni.navigateBack()
+			}
+		}
+	}
+</script>
+
+<style>
+	.page {
+		width: 750rpx;
+		flex: 1;
+		background-color: #000000;
+	}
+	.barcode {
+		width: 750rpx;
+		height: 100vh;
+	}
+	.close-btn {
+		position: fixed;
+		top: 60rpx;
+		left: 30rpx;
+		width: 60rpx;
+		height: 60rpx;
+		border-radius: 50%;
+		background-color: rgba(255,255,255,0.2);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 999;
+	}
+	.close-icon {
+		color: #ffffff;
+		font-size: 36rpx;
+	}
+	.tip {
+		position: fixed;
+		bottom: 120rpx;
+		left: 50%;
+		transform: translateX(-50%);
+		background-color: rgba(0,0,0,0.5);
+		padding: 12rpx 30rpx;
+		border-radius: 40rpx;
+		z-index: 999;
+	}
+	.tip-text {
+		color: #ffffff;
+		font-size: 28rpx;
+	}
+</style>
