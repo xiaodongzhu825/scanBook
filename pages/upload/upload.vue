@@ -785,6 +785,35 @@
 				</view>
 			</view>
 		</view>
+		
+		<!-- 扫码结果弹窗 -->
+		<view class="scan-result-overlay" v-if="showScanPopup" @click="closeScanPopup">
+			<view class="scan-result-popup" @click.stop>
+				<view class="popup-scan-header">
+					<text class="popup-scan-title">扫码结果</text>
+					<text class="popup-scan-close" @click="closeScanPopup">✕</text>
+				</view>
+				<view class="popup-scan-content">
+					<view class="scan-result-row" v-if="scanPopupWhCode">
+						<text class="scan-result-label">仓库编码</text>
+						<text class="scan-result-value">{{ scanPopupWhCode }}</text>
+					</view>
+					<view class="scan-result-row" v-if="scanPopupLocCode">
+						<text class="scan-result-label">货位号</text>
+						<text class="scan-result-value">{{ scanPopupLocCode }}</text>
+					</view>
+					<view class="scan-result-row" v-if="!scanPopupWhCode && !scanPopupLocCode">
+						<text class="scan-result-label">条码内容</text>
+						<text class="scan-result-value">{{ scanPopupRaw }}</text>
+					</view>
+					<text class="scan-result-hint">点击「搜索」查询匹配货位</text>
+				</view>
+				<view class="popup-scan-footer">
+					<view class="popup-scan-btn popup-scan-cancel" @click="closeScanPopup">取消</view>
+					<view class="popup-scan-btn popup-scan-confirm" @click="confirmScanSearch">搜索</view>
+				</view>
+			</view>
+		</view>
 	</view>
 </template>
 
@@ -890,6 +919,12 @@ export default {
 			popupRefreshing: false,
 			_pendingPreselectWh: null,
 			_pendingPreselectLoc: null,
+			
+			// 扫码弹窗
+			showScanPopup: false,
+			scanPopupWhCode: '',
+			scanPopupLocCode: '',
+			scanPopupRaw: '',
 			
 			// 登录
 			isLoggedIn: false,
@@ -1546,71 +1581,74 @@ export default {
 						const whCode = scanned.substring(0, sepIdx).trim()
 						const locCode = scanned.substring(sepIdx + 2).trim()
 						if (whCode && locCode) {
-							// 弹窗显示识别内容，让用户确认后搜索
-							uni.showModal({
-								title: '扫码结果',
-								content: '仓库编码：' + whCode + '\n货位号：' + locCode + '\n\n点击"搜索"查询货位',
-								confirmText: '搜索',
-								cancelText: '取消',
-								success: async (modalRes) => {
-									if (!modalRes.confirm) return
-									// 按仓库编码查找匹配的仓库
-									const whIdx = this.popupWarehouseList.findIndex(w => {
-										const code = (w.code || '').toLowerCase()
-										const name = (w.name || '').toLowerCase()
-										const search = whCode.toLowerCase()
-										return code === search || name === search || code.includes(search)
-									})
-									if (whIdx !== -1) {
-										// 切换到该仓库,携带货位号请求后端过滤
-										await this.loadPopupLocations(this.popupWarehouseList[whIdx].id, false, locCode)
-										this.popupActiveWhIndex = whIdx
-										this.popupSelectedWh = this.popupWarehouseList[whIdx]
-										// 如果后端返回了匹配的货位,自动选中
-										if (this.popupLocationList.length > 0) {
-											this.popupSelectedLoc = this.popupLocationList[0]
-											this.popupLocationSearch = ''
-											uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + this.popupLocationList[0].code, icon: 'success' })
-										} else {
-											uni.showToast({ title: '已切换仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
-										}
-									} else {
-										uni.showToast({ title: '未找到仓库: ' + whCode, icon: 'none' })
-									}
-								}
-							})
+							this.scanPopupWhCode = whCode
+							this.scanPopupLocCode = locCode
+							this.scanPopupRaw = ''
+							this.showScanPopup = true
 							return
 						}
 					}
 
-					// 无##格式，在当前仓库的货位列表中查找匹配的货位
-					uni.showModal({
-						title: '扫码结果',
-						content: '条码内容：' + scanned + '\n\n点击"搜索"在当前仓库中查询货位',
-						confirmText: '搜索',
-						cancelText: '取消',
-						success: async (modalRes) => {
-							if (!modalRes.confirm) return
-							const search = scanned.toLowerCase()
-							const matched = this.popupAllLocationList.find(l => {
-								const code = (l.code || '').toLowerCase()
-								const name = (l.name || '').toLowerCase()
-								return code === search || name === search ||
-									code.includes(search) || search.includes(code)
-							})
-							if (matched) {
-								this.popupSelectedLoc = matched
-								this.popupLocationSearch = ''
-								this.popupLocationList = [...this.popupAllLocationList]
-								uni.showToast({ title: '已选中货位: ' + matched.code, icon: 'success' })
-							} else {
-								uni.showToast({ title: '未找到匹配货位', icon: 'none' })
-							}
-						}
-					})
+					// 纯条码格式
+					this.scanPopupWhCode = ''
+					this.scanPopupLocCode = ''
+					this.scanPopupRaw = scanned
+					this.showScanPopup = true
 				},
 				fail: () => {}
 			})
+		},
+
+		closeScanPopup() {
+			this.showScanPopup = false
+		},
+
+		async confirmScanSearch() {
+			this.showScanPopup = false
+			const whCode = this.scanPopupWhCode
+			const locCode = this.scanPopupLocCode
+			const raw = this.scanPopupRaw
+
+			if (whCode && locCode) {
+				// 格式 NS##a5-4
+				const whIdx = this.popupWarehouseList.findIndex(w => {
+					const code = (w.code || '').toLowerCase()
+					const name = (w.name || '').toLowerCase()
+					const search = whCode.toLowerCase()
+					return code === search || name === search || code.includes(search)
+				})
+				if (whIdx !== -1) {
+					await this.loadPopupLocations(this.popupWarehouseList[whIdx].id, false, locCode)
+					this.popupActiveWhIndex = whIdx
+					this.popupSelectedWh = this.popupWarehouseList[whIdx]
+					if (this.popupLocationList.length > 0) {
+						this.popupSelectedLoc = this.popupLocationList[0]
+						this.popupLocationSearch = ''
+						uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + this.popupLocationList[0].code, icon: 'success' })
+					} else {
+						uni.showToast({ title: '已切换仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
+					}
+				} else {
+					uni.showToast({ title: '未找到仓库: ' + whCode, icon: 'none' })
+				}
+			} else if (raw) {
+				// 纯条码，在当前仓库的货位列表中查找
+				const search = raw.toLowerCase()
+				const matched = this.popupAllLocationList.find(l => {
+					const code = (l.code || '').toLowerCase()
+					const name = (l.name || '').toLowerCase()
+					return code === search || name === search ||
+						code.includes(search) || search.includes(code)
+				})
+				if (matched) {
+					this.popupSelectedLoc = matched
+					this.popupLocationSearch = ''
+					this.popupLocationList = [...this.popupAllLocationList]
+					uni.showToast({ title: '已选中货位: ' + matched.code, icon: 'success' })
+				} else {
+					uni.showToast({ title: '未找到匹配货位', icon: 'none' })
+				}
+			}
 		},
 
 		// 比价切换 - 切换后触发搜索
@@ -3462,6 +3500,98 @@ picker {
   background-color: #a0cfff;
   color: #ffffff;
   opacity: 0.6;
+}
+
+/* ========== 扫码结果弹窗 ========== */
+.scan-result-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.3);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-result-popup {
+  width: 560rpx;
+  background-color: #ffffff;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.popup-scan-header {
+  padding: 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.popup-scan-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.popup-scan-close {
+  font-size: 36rpx;
+  color: #999999;
+  padding: 0 10rpx;
+}
+
+.popup-scan-content {
+  padding: 30rpx;
+  min-height: 120rpx;
+}
+
+.scan-result-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.scan-result-label {
+  font-size: 28rpx;
+  color: #666666;
+  margin-right: 20rpx;
+  min-width: 120rpx;
+}
+
+.scan-result-value {
+  font-size: 30rpx;
+  color: #333333;
+  font-weight: 500;
+}
+
+.scan-result-hint {
+  font-size: 26rpx;
+  color: #999999;
+  margin-top: 10rpx;
+  display: block;
+}
+
+.popup-scan-footer {
+  display: flex;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.popup-scan-btn {
+  flex: 1;
+  height: 90rpx;
+  line-height: 90rpx;
+  text-align: center;
+  font-size: 32rpx;
+}
+
+.popup-scan-cancel {
+  background-color: #f5f5f5;
+  color: #333333;
+}
+
+.popup-scan-confirm {
+  background-color: #007aff;
+  color: #ffffff;
 }
 
 /* ========== 定价策略 ========== */
