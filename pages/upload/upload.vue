@@ -324,7 +324,11 @@
 								<view class="field-label">
 									<text class="label-text">印刷时间</text>
 								</view>
-								<input class="form-input" v-model="noIsbnPrintTime" placeholder="请输入印刷时间" />
+								<picker mode="multiSelector" :range="noIsbnPrintTimeColumns" @columnchange="onNoIsbnPrintTimeColumnChange" @change="onNoIsbnPrintTimeChange" :value="noIsbnPrintTimeIndexes">
+									<view class="form-input picker-value-text">
+										<text>{{ noIsbnPrintTime || '选择年/月' }}</text>
+									</view>
+								</picker>
 							</view>
 
 							<view class="form-section">
@@ -818,6 +822,7 @@ export default {
 			
 			// 无ISBN表单
 			noIsbnPrintTime: '',
+			noIsbnPrintTimeIndexes: [0, 0],
 			noIsbnBookName: '',
 			noIsbnAuthor: '',
 			noIsbnPublisher: '',
@@ -1067,6 +1072,19 @@ export default {
 			const arr = []
 			for (let i = 2; i <= 12; i++) arr.push(i)
 			return arr
+		},
+		noIsbnYearOptions() {
+			const arr = []
+			for (let i = 1960; i <= 2035; i++) arr.push(String(i))
+			return arr
+		},
+		noIsbnMonthOptions() {
+			const arr = []
+			for (let i = 1; i <= 12; i++) arr.push(String(i).padStart(2, '0'))
+			return arr
+		},
+		noIsbnPrintTimeColumns() {
+			return [this.noIsbnYearOptions, this.noIsbnMonthOptions]
 		},
 		filteredLocationList() {
 			if (!this.popupLocationSearch) return this.popupLocationList
@@ -1620,6 +1638,23 @@ export default {
 			}
 			this.updateNoIsbnCategoryPathText()
 			this.updateNoIsbnSelectedCategoryId()
+		},
+
+		// 印刷时间 - 列变化
+		onNoIsbnPrintTimeColumnChange(e) {
+			const { column, value } = e.detail
+			this.noIsbnPrintTimeIndexes[column] = value
+		},
+
+		// 印刷时间 - 确认选择
+		onNoIsbnPrintTimeChange(e) {
+			const values = e.detail.value
+			this.noIsbnPrintTimeIndexes = [...values]
+			const year = this.noIsbnYearOptions[values[0]]
+			const month = this.noIsbnMonthOptions[values[1]]
+			if (year && month) {
+				this.noIsbnPrintTime = year + '/' + month
+			}
 		},
 
 		// 商品预览
@@ -2290,6 +2325,16 @@ export default {
 .picker-arrow {
   font-size: 36rpx;
   color: #c0c4cc;
+}
+
+/* 印刷时间选择器：和表单输入框一致 */
+.picker-value-text {
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+  color: #606266;
+  width: 100%;
+  height: 100%;
 }
 
 /* ========== ISBN 输入 ========== */
