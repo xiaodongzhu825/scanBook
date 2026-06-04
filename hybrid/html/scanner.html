@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>扫码</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    #scanner-container {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #000;
+    }
+    #scanner-container video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover;
+      position: absolute;
+      top: 0; left: 0;
+    }
+    /* 隐藏 quagga 的取景框 canvas */
+    #scanner-container canvas {
+      display: none !important;
+    }
+    /* 关闭按钮 */
+    .close-btn {
+      position: fixed;
+      top: 60rpx;
+      left: 30rpx;
+      width: 60rpx;
+      height: 60rpx;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: #fff;
+      font-size: 36rpx;
+    }
+    /* tip */
+    .tip {
+      position: fixed;
+      bottom: 120rpx;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 9999;
+    }
+    .tip-text {
+      display: inline-block;
+      color: #fff;
+      font-size: 28rpx;
+      background: rgba(0,0,0,0.5);
+      padding: 12rpx 30rpx;
+      border-radius: 40rpx;
+    }
+    /* 加载/错误提示 */
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 28rpx;
+      z-index: 9999;
+      text-align: center;
+    }
+    /* 适配 rpx 单位：假设 750rpx = 屏幕宽 */
+    @media (min-width: 400px) {
+      .close-btn { width: 40px; height: 40px; font-size: 22px; top: 40px; left: 20px; }
+      .tip-text { font-size: 16px; padding: 8px 20px; border-radius: 28px; }
+      .tip { bottom: 80px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="scanner-container"></div>
+  <div class="close-btn" id="closeBtn">✕</div>
+  <div class="tip"><span class="tip-text" id="tipText">对准条码自动识别</span></div>
+  <div class="loading" id="loadingText">正在启动摄像头...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/quagga2/dist/quagga.min.js"></script>
+  <script>
+    var detected = false;
+    var closeBtn = document.getElementById('closeBtn');
+    var loadingText = document.getElementById('loadingText');
+    var tipText = document.getElementById('tipText');
+
+    function sendToApp(action, code) {
+      if (window.uni && window.uni.postMessage) {
+        window.uni.postMessage({ data: { action: action, code: code || '' } });
+      }
+    }
+
+    function closeCamera() {
+      try { Quagga.stop(); } catch(e) {}
+      sendToApp('close');
+    }
+
+    closeBtn.addEventListener('click', closeCamera);
+
+    function startQuagga() {
+      Quagga.init({
+        inputStream: {
+          name: 'Live',
+          type: 'LiveStream',
+          target: document.querySelector('#scanner-container'),
+          constraints: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'environment'
+          }
+        },
+        decoder: {
+          readers: [
+            'ean_reader',
+            'ean_8_reader',
+            'upc_reader',
+            'code_128_reader',
+            'code_39_reader'
+          ],
+          debug: false
+        },
+        locator: {
+          halfSample: false,
+          patchSize: 'large'
+        },
+        numOfWorkers: 2,
+        frequency: 5
+      }, function(err) {
+        if (err) {
+          loadingText.innerText = '摄像头启动失败，请检查权限';
+          console.error('Quagga init error:', err);
+          setTimeout(function() {
+            loadingText.innerText = '点击返回';
+            closeBtn.addEventListener('click', function() {
+              sendToApp('close');
+            });
+          }, 2000);
+          return;
+        }
+        loadingText.style.display = 'none';
+        Quagga.start();
+      });
+    }
+
+    Quagga.onDetected(function(result) {
+      if (detected) return;
+      var code = result && result.codeResult && result.codeResult.code;
+      if (!code) return;
+      // ISBN 通常是 13 位数字，但也接受其他格式
+      code = code.replace(/\D/g, '');
+      if (code.length === 13 || code.length === 12 || code.length === 10) {
+        detected = true;
+        tipText.innerText = '识别成功';
+        Quagga.stop();
+        setTimeout(function() {
+          sendToApp('scanned', code);
+        }, 300);
+      }
+    });
+
+    // 等待 UniApp 桥接就绪后启动
+    function waitForBridge() {
+      if (window.uni && window.uni.postMessage) {
+        startQuagga();
+      } else {
+        document.addEventListener('UniAppJSBridgeReady', function() {
+          startQuagga();
+        });
+        // 降级：2秒后直接启动
+        setTimeout(function() {
+          if (typeof Quagga !== 'undefined') {
+            startQuagga();
+          }
+        }, 2000);
+      }
+    }
+
+    // 页面加载完成后启动
+    if (document.readyState === 'complete') {
+      waitForBridge();
+    } else {
+      window.addEventListener('load', waitForBridge);
+    }
+
+    // 页面不可见时停止摄像头节省资源（可选）
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        try { Quagga.stop(); } catch(e) {}
+      }
+    });
+  </script>
+</body>
+</html>

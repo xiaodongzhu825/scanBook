@@ -1,47 +1,26 @@
 <template>
 	<view class="page">
-		<barcode class="barcode" ref="barcode" autostart="true" background="#00000000" frameColor="#00000000" scanbarColor="#00000000" :filters="[1,2,5,6,7,8,9,10,11]" @marked="onMarked" @error="onError"></barcode>
-		<!-- 返回按钮 -->
-		<view class="close-btn" @click="goBack">
-			<text class="close-icon">✕</text>
-		</view>
-		<!-- 底部提示 -->
-		<view class="tip">
-			<text class="tip-text">对准条码自动识别</text>
-		</view>
+		<web-view src="/hybrid/html/scanner.html" @message="handleMessage"></web-view>
 	</view>
 </template>
 
 <script>
 	export default {
 		data() {
-			return {
-				scanned: false
-			}
-		},
-		onUnload() {
-			this.$refs.barcode && this.$refs.barcode.cancel()
+			return {}
 		},
 		methods: {
-			onMarked(e) {
-				if (this.scanned) return
-				this.scanned = true
-				const code = e.detail && (e.detail.message || '')
-				if (code && code.length === 13) {
+			handleMessage(e) {
+				const data = e.detail && e.detail.data && e.detail.data[0]
+				if (!data) return
+				const action = data.action || ''
+				if (action === 'scanned' && data.code) {
 					// 发送结果回上传页面
-					uni.$emit('scan-isbn-result', code)
+					uni.$emit('scan-isbn-result', data.code)
 					uni.navigateBack()
-				} else {
-					this.scanned = false
+				} else if (action === 'close') {
+					uni.navigateBack()
 				}
-			},
-			onError() {
-				uni.showToast({ title: '扫码异常', icon: 'none' })
-				uni.navigateBack()
-			},
-			goBack() {
-				this.$refs.barcode && this.$refs.barcode.cancel()
-				uni.navigateBack()
 			}
 		}
 	}
@@ -50,41 +29,6 @@
 <style>
 	.page {
 		flex: 1;
-	}
-	.barcode {
-		width: 750rpx;
-		flex: 1;
-	}
-	.close-btn {
-		position: fixed;
-		top: 60rpx;
-		left: 30rpx;
-		width: 60rpx;
-		height: 60rpx;
-		border-radius: 50%;
-		background-color: rgba(255,255,255,0.2);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 999;
-	}
-	.close-icon {
-		color: #ffffff;
-		font-size: 36rpx;
-	}
-	.tip {
-		position: fixed;
-		bottom: 120rpx;
-		left: 0;
-		right: 0;
-		text-align: center;
-		z-index: 999;
-	}
-	.tip-text {
-		color: #ffffff;
-		font-size: 28rpx;
-		background-color: rgba(0,0,0,0.5);
-		padding: 12rpx 30rpx;
-		border-radius: 40rpx;
+		background-color: #000;
 	}
 </style>
