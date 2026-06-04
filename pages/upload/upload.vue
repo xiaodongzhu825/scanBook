@@ -239,12 +239,29 @@
 							<input class="form-input" v-model="noIsbnPrintTime" placeholder="请输入印刷时间" />
 						</view>
 
-						<!-- 书名 -->
+						<!-- 书名（带查询按钮） -->
 						<view class="form-section">
 							<view class="field-label">
 								<text class="label-text">书名</text>
 							</view>
-							<input class="form-input" v-model="noIsbnBookName" placeholder="请输入书名" />
+							<view class="inline-fields" style="flex:1;">
+								<view class="inline-field" style="flex:1;">
+									<input class="form-input" v-model="noIsbnBookName" placeholder="请输入书名" style="flex:1;" />
+								</view>
+								<view class="inline-field" style="flex:none;">
+									<view class="search-btn" @click="searchNoIsbn">
+										<text class="search-text">搜</text>
+									</view>
+								</view>
+							</view>
+						</view>
+
+						<!-- 作者 -->
+						<view class="form-section">
+							<view class="field-label">
+								<text class="label-text">作者</text>
+							</view>
+							<input class="form-input" v-model="noIsbnAuthor" placeholder="请输入作者" />
 						</view>
 
 						<!-- 出版社 -->
@@ -360,6 +377,82 @@
 										<text class="add-text">拍照</text>
 									</view>
 								</view>
+							</view>
+						</view>
+
+						<!-- 市场竞争 -->
+						<view class="form-section" v-if="noIsbnProductList.length > 0">
+							<view class="section-title">
+								<text class="title-text">市场竞争</text>
+							</view>
+							<view class="market-stats">
+								<view class="stat-item">
+									<text class="stat-label">在售</text>
+									<text class="stat-value">{{ noIsbnMarketData.onSale }}</text>
+								</view>
+								<view class="stat-item">
+									<text class="stat-label">旧</text>
+									<text class="stat-value">{{ noIsbnMarketData.old }}</text>
+								</view>
+								<view class="stat-item">
+									<text class="stat-label">新</text>
+									<text class="stat-value">{{ noIsbnMarketData.new }}</text>
+								</view>
+								<view class="stat-item">
+									<text class="stat-label">已售</text>
+									<text class="stat-value">{{ noIsbnMarketData.sold }}</text>
+								</view>
+							</view>
+						</view>
+
+						<!-- 在售商品 -->
+						<view class="form-section" v-if="noIsbnProductList.length > 0">
+							<view class="section-title">
+								<text class="title-text">在售商品</text>
+							</view>
+							<view class="loading-box" v-if="noIsbnLoading">
+								<view class="loading-spinner"></view>
+								<text class="loading-text">正在比价...</text>
+							</view>
+							<view class="product-grid" v-else>
+								<view class="grid-item" v-for="(item, index) in noIsbnProductList" :key="index">
+									<image class="grid-image" :src="item.image" mode="aspectFill" @click="previewProductImage(index)" v-if="item.image"></image>
+									<text class="grid-book-name">{{ item.bookName || '未知书名' }}</text>
+									<text class="grid-author">{{ item.author || '' }}</text>
+									<text class="grid-total-price">¥{{ item.totalPrice.toFixed(2) }}</text>
+									<text class="grid-price-detail" v-if="item.shippingFee > 0">书¥{{ item.bookPrice.toFixed(2) }}+运¥{{ item.shippingFee.toFixed(2) }}</text>
+									<text class="grid-condition">{{ item.condition || '' }}</text>
+									<text class="grid-shop">{{ item.shopName || '' }}</text>
+								</view>
+								<view class="no-data" v-if="noIsbnProductList.length === 0">
+									<text class="no-data-text">暂无在售商品</text>
+								</view>
+							</view>
+						</view>
+
+						<!-- 上书记录 -->
+						<view class="form-section" v-if="noIsbnHistoryList.length > 0">
+							<view class="section-title">
+								<text class="title-text">上书记录</text>
+							</view>
+							<view class="history-list">
+								<view class="history-item" v-for="(item, index) in noIsbnHistoryList" :key="index">
+									<view class="history-row">
+										<text class="history-date">{{ item.date }}</text>
+										<text class="history-condition">{{ item.condition }}</text>
+									</view>
+									<view class="history-row">
+										<text class="history-price">¥{{ item.price }}</text>
+										<text class="history-stock">库存{{ item.stock }}本</text>
+									</view>
+								</view>
+							</view>
+						</view>
+
+						<!-- 确认上传 -->
+						<view class="submit-area">
+							<view class="submit-btn" @click="submitNoIsbnUpload" :class="{ disabled: noIsbnSubmitting }">
+								<text class="submit-btn-text">确认上传</text>
 							</view>
 						</view>
 
@@ -737,18 +830,26 @@ export default {
 			// 无ISBN表单
 			noIsbnPrintTime: '',
 			noIsbnBookName: '',
+			noIsbnAuthor: '',
 			noIsbnPublisher: '',
 			noIsbnSelectedCategory: '',
 			noIsbnFormat: '',
 			noIsbnOriginalPrice: '',
 			noIsbnWordCount: '',
 			noIsbnIsbn: '',
-			noIsbnSelectedCondition: '',
+			noIsbnSelectedCondition: '六品',
 			noIsbnPrice: '',
-			noIsbnStock: '',
+			noIsbnStock: 1,
 			noIsbnPhotoList: [],
 			noIsbnSelectedArea: '',
 			noIsbnWarehouseData: null,
+			
+			// 无ISBN - 市场竞争/在售
+			noIsbnMarketData: { onSale: 0, old: 0, new: 0, sold: 0 },
+			noIsbnProductList: [],
+			noIsbnHistoryList: [],
+			noIsbnLoading: false,
+			noIsbnSubmitting: false,
 			
 			// 分类
 			showCategoryPopup: false,
@@ -857,6 +958,18 @@ export default {
 				'六品': '60~'
 			}
 			return this.selectedCondition ? (map[this.selectedCondition] || '') : ''
+		},
+		noIsbnConditionValue() {
+			const map = {
+				'全新': '100~',
+				'九五品': '95~',
+				'九品': '90~',
+				'八五品': '85~',
+				'八品': '80~',
+				'七品': '70~',
+				'六品': '60~'
+			}
+			return this.noIsbnSelectedCondition ? (map[this.noIsbnSelectedCondition] || '') : ''
 		},
 		calculatedPrice() {
 			const sorted = this.sortedProductList
@@ -1414,6 +1527,124 @@ export default {
 				uni.showToast({ title: '上传成功', icon: 'success' })
 				// 清空表单待后续对接真实API
 			}, 1500)
+		},
+
+		// 无ISBN - 书名搜索（使用与ISBN相同的kongfz接口）
+		searchNoIsbn() {
+			if (!this.isLoggedIn) {
+				uni.showToast({ title: '请先登录孔网账号', icon: 'none' })
+				return
+			}
+			if (!this.noIsbnBookName) {
+				uni.showToast({ title: '请输入书名', icon: 'none' })
+				return
+			}
+			this.noIsbnLoading = true
+			this.noIsbnProductList = []
+			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
+			const keyword = this.noIsbnBookName
+			Promise.all([
+				searchProducts(keyword, { phpsessid, sortType: '7', quality: this.noIsbnConditionValue }),
+				searchFacet(keyword, { phpsessid, dataType: 0 }),
+				searchFacet(keyword, { phpsessid, dataType: 1 })
+			]).then(([productsData, onSaleFacet, soldFacet]) => {
+				this.noIsbnLoading = false
+				if (productsData && productsData.total > 0) {
+					const list = (productsData.list || []).slice(0, 12)
+					this.noIsbnProductList = list.map(item => {
+						const cleanPrice = parseFloat((item.priceText || '0').replace(/[^\d.]/g, ''))
+						let shippingFee = 0
+						if (item.postage) {
+							if (typeof item.postage === 'number' || typeof item.postage === 'string') {
+								shippingFee = parseFloat(item.postage) || 0
+							} else if (item.postage.shippingList && item.postage.shippingList.length > 0) {
+								shippingFee = parseFloat(item.postage.shippingList[0].shippingFee || 0)
+							} else if (item.postage.shippingFee) {
+								shippingFee = parseFloat(item.postage.shippingFee || 0)
+							}
+						}
+						if (shippingFee === 0 && item.shippingFee) {
+							shippingFee = parseFloat(item.shippingFee) || 0
+						}
+						const totalPrice = Number((cleanPrice + shippingFee).toFixed(2))
+						return {
+							image: item.imgBigUrl || '',
+							totalPrice: totalPrice,
+							bookPrice: cleanPrice,
+							shippingFee: shippingFee,
+							condition: item.qualityText || '',
+							shopName: item.shopName || '',
+							bookName: item.title || '',
+							author: item.author || '',
+							pubDate: item.pubDateText || '',
+							bookId: item.id || ''
+						}
+					})
+				}
+				this.noIsbnMarketData = {
+					onSale: onSaleFacet ? onSaleFacet.totalFound : (productsData ? productsData.total : 0),
+					old: onSaleFacet ? onSaleFacet.oldCount : 0,
+					new: onSaleFacet ? onSaleFacet.newCount : 0,
+					sold: soldFacet ? soldFacet.totalFound : 0
+				}
+			}).catch(err => {
+				console.error('无ISBN搜索失败:', err)
+				this.noIsbnLoading = false
+				uni.showToast({ title: '查询失败', icon: 'none' })
+			})
+		},
+
+		// 无ISBN - 确认上传
+		submitNoIsbnUpload() {
+			if (this.noIsbnSubmitting) return
+
+			const warehouseData = this.currentTab === 'no-isbn' ? this.noIsbnWarehouseData : null
+			if (!warehouseData) {
+				uni.showToast({ title: '请选择货区', icon: 'none' })
+				return
+			}
+			if (!this.noIsbnPrice) {
+				uni.showToast({ title: '售价不能为空', icon: 'none' })
+				return
+			}
+			if (!this.noIsbnBookName) {
+				uni.showToast({ title: '书名不能为空', icon: 'none' })
+				return
+			}
+
+			const warehouseName = warehouseData.warehouseName || warehouseData.name || ''
+			const locCode = warehouseData.locationCode || warehouseData.code || ''
+			const locationText = warehouseName + (locCode ? ' - ' + locCode : '')
+
+			const contentLines = [
+				'📦 货区：' + locationText,
+				'📕 书名：' + (this.noIsbnBookName || '-'),
+				'✍️ 作者：' + (this.noIsbnAuthor || '-'),
+				'🏢 出版社：' + (this.noIsbnPublisher || '-'),
+				'🏷️ 定价：' + (this.noIsbnOriginalPrice || '-'),
+				'📅 印刷时间：' + (this.noIsbnPrintTime || '-'),
+				'💰 价格：' + (this.noIsbnPrice || '-'),
+				'📊 库存：' + (this.noIsbnStock ?? '-'),
+				'📷 图片：' + this.noIsbnPhotoList.length + '张'
+			]
+
+			uni.showModal({
+				title: '确认上传',
+				content: contentLines.join('\n'),
+				confirmText: '确认上传',
+				cancelText: '取消',
+				success: (res) => {
+					if (res.confirm) {
+						this.noIsbnSubmitting = true
+						uni.showLoading({ title: '上传中...' })
+						setTimeout(() => {
+							uni.hideLoading()
+							this.noIsbnSubmitting = false
+							uni.showToast({ title: '上传成功', icon: 'success' })
+						}, 1500)
+					}
+				}
+			})
 		},
 
 		// 登录 - 接入孔夫子真实登录
@@ -2203,7 +2434,22 @@ export default {
   justify-content: center;
 }
 
+.submit-area {
+  margin-top: 30rpx;
+  padding: 0 20rpx;
+}
+
+.submit-btn.disabled {
+  opacity: 0.6;
+}
+
 .submit-text {
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.submit-btn-text {
   color: #ffffff;
   font-size: 32rpx;
   font-weight: 600;
