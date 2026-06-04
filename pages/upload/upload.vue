@@ -2331,10 +2331,11 @@ export default {
 .picker-value-text {
   display: flex;
   align-items: center;
-  font-size: 28rpx;
-  color: #606266;
+}
+uni-picker,
+picker {
+  display: block;
   width: 100%;
-  height: 100%;
 }
 
 /* ========== ISBN 输入 ========== */
