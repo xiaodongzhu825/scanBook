@@ -1081,9 +1081,15 @@ export default {
 
 	watch: {
 		noIsbnSelectedCondition() {
-			// 品相变化时重新搜索在售商品
+			// 品相变化时重新搜索在售商品（无ISBN页）
 			if (this.noIsbnProductList.length > 0 && this.noIsbnBookName && this.isLoggedIn) {
 				this.searchNoIsbn()
+			}
+		},
+		selectedCondition() {
+			// 品相变化时重新搜索在售商品（ISBN页）
+			if (this.productList.length > 0 && this.isbn && this.isLoggedIn) {
+				this.searchISBN()
 			}
 		}
 	},
