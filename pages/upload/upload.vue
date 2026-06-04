@@ -1546,51 +1546,68 @@ export default {
 						const whCode = scanned.substring(0, sepIdx).trim()
 						const locCode = scanned.substring(sepIdx + 2).trim()
 						if (whCode && locCode) {
-							// 按仓库编码查找匹配的仓库
-							const whIdx = this.popupWarehouseList.findIndex(w => {
-								const code = (w.code || '').toLowerCase()
-								const name = (w.name || '').toLowerCase()
-								const search = whCode.toLowerCase()
-								return code === search || name === search || code.includes(search)
-							})
-							if (whIdx !== -1) {
-								// 切换到该仓库,携带货位号请求后端过滤
-								await this.loadPopupLocations(this.popupWarehouseList[whIdx].id, false, locCode)
-								this.popupActiveWhIndex = whIdx
-								this.popupSelectedWh = this.popupWarehouseList[whIdx]
-								// 如果后端返回了匹配的货位,自动选中
-								if (this.popupLocationList.length > 0) {
-									this.popupSelectedLoc = this.popupLocationList[0]
-									this.popupLocationSearch = ''
-									uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + this.popupLocationList[0].code, icon: 'success' })
-								} else {
-									uni.showToast({ title: '已切换仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
+							// 弹窗显示识别内容，让用户确认后搜索
+							uni.showModal({
+								title: '扫码结果',
+								content: '仓库编码：' + whCode + '\n货位号：' + locCode + '\n\n点击"搜索"查询货位',
+								confirmText: '搜索',
+								cancelText: '取消',
+								success: async (modalRes) => {
+									if (!modalRes.confirm) return
+									// 按仓库编码查找匹配的仓库
+									const whIdx = this.popupWarehouseList.findIndex(w => {
+										const code = (w.code || '').toLowerCase()
+										const name = (w.name || '').toLowerCase()
+										const search = whCode.toLowerCase()
+										return code === search || name === search || code.includes(search)
+									})
+									if (whIdx !== -1) {
+										// 切换到该仓库,携带货位号请求后端过滤
+										await this.loadPopupLocations(this.popupWarehouseList[whIdx].id, false, locCode)
+										this.popupActiveWhIndex = whIdx
+										this.popupSelectedWh = this.popupWarehouseList[whIdx]
+										// 如果后端返回了匹配的货位,自动选中
+										if (this.popupLocationList.length > 0) {
+											this.popupSelectedLoc = this.popupLocationList[0]
+											this.popupLocationSearch = ''
+											uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + this.popupLocationList[0].code, icon: 'success' })
+										} else {
+											uni.showToast({ title: '已切换仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
+										}
+									} else {
+										uni.showToast({ title: '未找到仓库: ' + whCode, icon: 'none' })
+									}
 								}
-								return
-							}
+							})
+							return
 						}
 					}
 
-					// 无仓库编码格式，在当前仓库的货位列表中查找匹配的货位
-					let matched = null
-					for (const loc of this.popupAllLocationList) {
-						const code = (loc.code || '').toLowerCase()
-						const name = (loc.name || '').toLowerCase()
-						const search = scanned.toLowerCase()
-						if (code === search || name === search ||
-							code.includes(search) || search.includes(code)) {
-							matched = loc
-							break
+					// 无##格式，在当前仓库的货位列表中查找匹配的货位
+					uni.showModal({
+						title: '扫码结果',
+						content: '条码内容：' + scanned + '\n\n点击"搜索"在当前仓库中查询货位',
+						confirmText: '搜索',
+						cancelText: '取消',
+						success: async (modalRes) => {
+							if (!modalRes.confirm) return
+							const search = scanned.toLowerCase()
+							const matched = this.popupAllLocationList.find(l => {
+								const code = (l.code || '').toLowerCase()
+								const name = (l.name || '').toLowerCase()
+								return code === search || name === search ||
+									code.includes(search) || search.includes(code)
+							})
+							if (matched) {
+								this.popupSelectedLoc = matched
+								this.popupLocationSearch = ''
+								this.popupLocationList = [...this.popupAllLocationList]
+								uni.showToast({ title: '已选中货位: ' + matched.code, icon: 'success' })
+							} else {
+								uni.showToast({ title: '未找到匹配货位', icon: 'none' })
+							}
 						}
-					}
-					if (matched) {
-						this.popupSelectedLoc = matched
-						this.popupLocationSearch = ''
-						this.popupLocationList = [...this.popupAllLocationList]
-						uni.showToast({ title: '已选中货位: ' + matched.code, icon: 'success' })
-					} else {
-						uni.showToast({ title: '未找到匹配货位', icon: 'none' })
-					}
+					})
 				},
 				fail: () => {}
 			})
