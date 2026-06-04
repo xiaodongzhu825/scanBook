@@ -1702,6 +1702,16 @@ export default {
 			const locCode = warehouseData.locationCode || warehouseData.code || ''
 			const locationText = warehouseName + (locCode ? ' - ' + locCode : '')
 
+			// 检查是否有图片
+			if (this.currentTab === 'isbn' && this.photoList.length < 1) {
+				uni.showToast({ title: '请至少拍一张图片', icon: 'none' })
+				return
+			}
+			if (this.currentTab === 'no-isbn' && this.noIsbnPhotoList.length < 1) {
+				uni.showToast({ title: '请至少拍一张图片', icon: 'none' })
+				return
+			}
+
 			let contentLines
 			if (this.currentTab === 'isbn') {
 				if (!this.isbn) {
