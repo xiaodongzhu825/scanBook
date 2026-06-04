@@ -60,7 +60,7 @@
 										<text class="picker-arrow">›</text>
 									</view>
 								</view>
-								<view class="inline-field">
+								<view class="inline-field isbn-field">
 									<view class="isbn-input-box" style="flex:1;">
 										<input class="isbn-input" v-model="isbn" placeholder="ISBN或扫码" maxlength="13"/>
 										<view class="scan-btn" @click="scanISBN">
@@ -1743,6 +1743,11 @@ export default {
 .inline-field.narrow {
   flex: none;
   width: 200rpx;
+}
+
+.inline-field.isbn-field {
+  flex: 1;
+  max-width: 80%;
 }
 
 /* ========== 价格输入 ========== */
