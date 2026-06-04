@@ -1,6 +1,6 @@
 <template>
 	<view class="page">
-		<barcode class="barcode" ref="barcode" autostart="true" background="transparent" frameColor="transparent" scanbarColor="transparent" :filters="[1,2,5,6,7,8,9,10,11]" @marked="onMarked" @error="onError"></barcode>
+		<barcode class="barcode" ref="barcode" autostart="true" background="#00000000" frameColor="#00000000" scanbarColor="#00000000" :filters="[1,2,5,6,7,8,9,10,11]" @marked="onMarked" @error="onError"></barcode>
 		<!-- 返回按钮 -->
 		<view class="close-btn" @click="goBack">
 			<text class="close-icon">✕</text>
