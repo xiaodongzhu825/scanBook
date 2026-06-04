@@ -750,6 +750,7 @@
 					<view class="wh-search-bar">
 						<input class="wh-search-input" v-model="popupLocationSearch" placeholder="搜索货位编码/名称" @input="onLocationSearchInput" />
 						<text class="wh-search-clear" v-if="popupLocationSearch" @click="clearLocationSearch">✕</text>
+						<text class="wh-scan-btn" @click="scanLocationBarcode">📷</text>
 					</view>
 					<scroll-view class="wh-location-list" scroll-y @scrolltolower="loadMorePopupLocation">
 						<view 
@@ -759,7 +760,7 @@
 							:class="{ active: popupSelectedLoc && popupSelectedLoc.id === loc.id }"
 							@click="selectPopupLocation(loc)"
 						>
-							<text class="wh-loc-code">{{ loc.code }} - {{ loc.name }}</text>
+							<text class="wh-loc-code">{{ loc.code }}</text>
 							<text class="wh-loc-check" v-if="popupSelectedLoc && popupSelectedLoc.id === loc.id">✓</text>
 						</view>
 						<view class="popup-loading" v-if="popupLocLoadingMore">
@@ -885,6 +886,8 @@ export default {
 			popupLocLoadingMore: false,
 			popupLocationSearch: '',
 			popupAllLocationList: [],
+			_pendingPreselectWh: null,
+			_pendingPreselectLoc: null,
 			
 			// 登录
 			isLoggedIn: false,
@@ -1315,6 +1318,9 @@ export default {
 		openWarehousePicker(tab) {
 			this.pickerTargetTab = tab
 			this.showWarehousePicker = true
+			const savedData = tab === 'isbn' ? this.isbnWarehouseData : this.noIsbnWarehouseData
+			this._pendingPreselectWh = savedData ? savedData.warehouseId : null
+			this._pendingPreselectLoc = savedData ? savedData.locationId : null
 			this.loadPopupWarehouses()
 		},
 
@@ -1331,8 +1337,27 @@ export default {
 				const list = res.data?.list || res.data?.records || res.list || res.records || []
 				if (list.length > 0) {
 					this.popupWarehouseList = list
-					this.popupActiveWhIndex = 0
-					this.loadPopupLocations(list[0].id)
+					// 默认选中第一个仓库
+					let whIdx = 0
+					const preselectWhId = this._pendingPreselectWh
+					if (preselectWhId) {
+						const foundIdx = list.findIndex(w => w.id === preselectWhId)
+						if (foundIdx !== -1) whIdx = foundIdx
+					}
+					this.popupActiveWhIndex = whIdx
+					this.popupSelectedWh = list[whIdx]
+					this.popupSelectedLoc = null
+					await this.loadPopupLocations(list[whIdx].id)
+					// 加载完货位后根据已选ID自动选中
+					const preselectLocId = this._pendingPreselectLoc
+					if (preselectLocId && this.popupLocationList.length > 0) {
+						const foundLoc = this.popupLocationList.find(l => l.id === preselectLocId)
+						if (foundLoc) {
+							this.popupSelectedLoc = foundLoc
+						}
+					}
+					this._pendingPreselectWh = null
+					this._pendingPreselectLoc = null
 				} else {
 					console.warn('仓库列表为空, 响应code:', res.code, '响应data:', JSON.stringify(res.data))
 				}
@@ -1484,6 +1509,39 @@ export default {
 		clearLocationSearch() {
 			this.popupLocationSearch = ''
 			this.popupLocationList = [...this.popupAllLocationList]
+		},
+
+		// 扫码识别货位
+		scanLocationBarcode() {
+			uni.scanCode({
+				onlyFromCamera: true,
+				scanType: ['barcode'],
+				success: (res) => {
+					const scanned = (res.result || '').trim().toLowerCase()
+					if (!scanned) return
+					// 在当前仓库的货位列表中查找匹配的货位
+					let matched = null
+					for (const loc of this.popupAllLocationList) {
+						const code = (loc.code || '').toLowerCase()
+						const name = (loc.name || '').toLowerCase()
+						if (code === scanned || name === scanned ||
+							code.includes(scanned) || scanned.includes(code)) {
+							matched = loc
+							break
+						}
+					}
+					if (matched) {
+						this.popupSelectedLoc = matched
+						// 滚动到该货位（通过设置搜索关键字并高亮）
+						this.popupLocationSearch = ''
+						this.popupLocationList = [...this.popupAllLocationList]
+						uni.showToast({ title: '已选中货位: ' + matched.code, icon: 'success' })
+					} else {
+						uni.showToast({ title: '未找到匹配货位', icon: 'none' })
+					}
+				},
+				fail: () => {}
+			})
 		},
 
 		// 比价切换 - 切换后触发搜索
@@ -3186,7 +3244,7 @@ picker {
   border: none;
   border-radius: 8rpx;
   height: 56rpx;
-  padding: 0 60rpx 0 16rpx;
+  padding: 0 100rpx 0 16rpx;
   font-size: 26rpx;
   color: #303133;
   box-sizing: border-box;
@@ -3200,7 +3258,7 @@ picker {
 
 .wh-search-clear {
   position: absolute;
-  right: 24rpx;
+  right: 72rpx;
   top: 50%;
   transform: translateY(-50%);
   width: 36rpx;
@@ -3212,6 +3270,20 @@ picker {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.wh-scan-btn {
+  position: absolute;
+  right: 24rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  color: #606266;
 }
 
 /* ========== 仓库货位列表 ========== */
