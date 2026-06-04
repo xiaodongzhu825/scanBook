@@ -752,7 +752,7 @@
 						<text class="wh-search-clear" v-if="popupLocationSearch" @click="clearLocationSearch">✕</text>
 						<text class="wh-scan-btn" @click="scanLocationBarcode">📷</text>
 					</view>
-					<scroll-view class="wh-location-list" scroll-y refresher-enabled="true" :refresher-triggered="popupRefreshing" @refresherrefresh="onPopupRefresh" @scrolltolower="loadMorePopupLocation">
+					<scroll-view class="wh-location-list" scroll-y :refresher-enabled="true" :refresher-triggered="popupRefreshing" @refresherrefresh="onPopupRefresh" @scrolltolower="loadMorePopupLocation">
 						<view 
 							class="wh-loc-item" 
 							v-for="loc in filteredLocationList" 
@@ -3202,6 +3202,15 @@ picker {
 }
 
 /* ========== 仓库 Tabs ========== */
+.wh-tabs-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden !important;
+  max-height: none !important;
+  display: flex;
+  flex-direction: column;
+}
+
 .wh-tabs-bar {
   height: 80rpx;
   background-color: #ffffff;
@@ -3303,6 +3312,8 @@ picker {
 /* ========== 仓库货位列表 ========== */
 .wh-location-list {
   flex: 1;
+  height: 0;
+  min-height: 0;
   overflow-y: auto;
   padding: 10rpx 16rpx;
 }
