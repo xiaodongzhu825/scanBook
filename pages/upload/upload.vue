@@ -752,7 +752,7 @@
 						<text class="wh-search-clear" v-if="popupLocationSearch" @click="clearLocationSearch">✕</text>
 						<text class="wh-scan-btn" @click="scanLocationBarcode">📷</text>
 					</view>
-					<scroll-view class="wh-location-list" scroll-y @scrolltolower="loadMorePopupLocation">
+					<scroll-view class="wh-location-list" scroll-y refresher-enabled="true" :refresher-triggered="popupRefreshing" @refresherrefresh="onPopupRefresh" @scrolltolower="loadMorePopupLocation">
 						<view 
 							class="wh-loc-item" 
 							v-for="loc in filteredLocationList" 
@@ -886,6 +886,7 @@ export default {
 			popupLocLoadingMore: false,
 			popupLocationSearch: '',
 			popupAllLocationList: [],
+			popupRefreshing: false,
 			_pendingPreselectWh: null,
 			_pendingPreselectLoc: null,
 			
@@ -1427,6 +1428,7 @@ export default {
 			if (wh) {
 				this.popupSelectedWh = wh
 				this.popupSelectedLoc = null
+				this.popupLocationSearch = ''
 				this.loadPopupLocations(wh.id)
 			}
 		},
@@ -1462,6 +1464,18 @@ export default {
 			this.showWarehousePicker = false
 		},
 
+		// 下拉刷新货位列表
+		async onPopupRefresh() {
+			this.popupRefreshing = true
+			this.popupLocationSearch = ''
+			const wh = this.popupWarehouseList[this.popupActiveWhIndex]
+			if (wh) {
+				await this.loadPopupLocations(wh.id)
+			}
+			this.popupRefreshing = false
+		},
+
+		// 上拉加载更多
 		loadMorePopupLocation() {
 			if (!this.popupLocHasMore || this.popupLocLoadingMore) return
 			this.popupLocLoadingMore = true
