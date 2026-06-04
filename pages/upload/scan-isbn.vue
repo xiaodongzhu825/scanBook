@@ -15,7 +15,6 @@
 				if (!data) return
 				const action = data.action || ''
 				if (action === 'scanned' && data.code) {
-					// 发送结果回上传页面
 					uni.$emit('scan-isbn-result', data.code)
 					uni.navigateBack()
 				} else if (action === 'close') {
