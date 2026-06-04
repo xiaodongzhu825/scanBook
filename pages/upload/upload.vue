@@ -958,21 +958,6 @@ export default {
 		}
 	},
 
-	onShow() {
-		// 每次页面显示时注册扫码结果监听
-		uni.$off('scan-isbn-result')
-		uni.$on('scan-isbn-result', (code) => {
-			if (code) {
-				this.isbn = code.trim()
-				this.searchISBN()
-			}
-		})
-	},
-
-	onUnload() {
-		uni.$off('scan-isbn-result')
-	},
-
 	computed: {
 		conditionValue() {
 			const map = {
@@ -1162,8 +1147,16 @@ export default {
 				uni.showToast({ title: '请先登录孔网账号', icon: 'none' })
 				return
 			}
-			// 打开nvue扫码页面（全屏摄像头，无取景框，实时识别）
-			uni.navigateTo({ url: '/pages/upload/scan-isbn' })
+			// 手机系统原生扫码（实时识别，对准即出结果）
+			uni.scanCode({
+				onlyFromCamera: true,
+				scanType: ['barcode'],
+				success: (res) => {
+					this.isbn = (res.result || '').trim()
+					this.searchISBN()
+				},
+				fail: () => {}
+			})
 		},
 
 		// ISBN搜索 - 查询图书中心 + 孔网市场
