@@ -155,7 +155,6 @@
 							<view class="section-header-row">
 								<view class="section-title">
 									<text class="title-text">在售商品</text>
-									<text class="product-count" v-if="productList.length > 0">({{ productList.length }}本)</text>
 								</view>
 								<view class="compare-toggle">
 									<text class="toggle-btn" :class="{ active: compareType === 'isbn' }" @click="switchCompare('isbn')">ISBN比价</text>
