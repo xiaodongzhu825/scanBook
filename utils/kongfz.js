@@ -190,7 +190,7 @@ export function fetchItems(token, params = {}, onProgress) {
  * list中每项: {id, title, author, press, priceText, imgBigUrl, shopName, qualityText, pubDateText, postage}
  */
 export function searchProducts(keyword, options = {}) {
-	const { phpsessid = '', page = 1, sortType = '', quality = '' } = options
+	const { phpsessid = '', page = 1, sortType = '', quality = '', publisher = '', author = '' } = options
 	return new Promise((resolve, reject) => {
 		const reqData = {
 			dataType: 0,
@@ -207,6 +207,12 @@ export function searchProducts(keyword, options = {}) {
 			reqData.quality = quality
 			reqData.quaSelect = '2'
 			actionPaths.push('quality')
+		}
+		if (publisher) {
+			reqData.press = publisher
+		}
+		if (author) {
+			reqData.author = author
 		}
 		if (actionPaths.length > 0) {
 			reqData.actionPath = actionPaths.join(',')
