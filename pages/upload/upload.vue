@@ -1147,37 +1147,13 @@ export default {
 				uni.showToast({ title: '请先登录孔网账号', icon: 'none' })
 				return
 			}
-			// 打开普通拍照摄像头（不带扫码框），拍照后OCR识别ISBN
-			uni.chooseImage({
-				sourceType: ['camera'],
-				count: 1,
+			// 打开摄像头实时识别条形码，对准即识别，无需拍照
+			uni.scanCode({
+				onlyFromCamera: true,
+				scanType: ['barcode'],
 				success: (res) => {
-					uni.showLoading({ title: '识别中...' })
-					const filePath = res.tempFilePaths[0]
-					uni.uploadFile({
-						url: 'https://book.xcx.ocr.buzhiyushu.cn/ocr',
-						filePath: filePath,
-						name: 'file',
-						success: (ocrRes) => {
-							uni.hideLoading()
-							try {
-								const ocrData = JSON.parse(ocrRes.data)
-								if (ocrData && ocrData.texts && ocrData.texts.ISBN) {
-									this.isbn = ocrData.texts.ISBN.replace(/\D/g, '')
-									this.searchISBN()
-								} else {
-									uni.showToast({ title: '未识别到ISBN，请重试或手动输入', icon: 'none' })
-								}
-							} catch (e) {
-								console.error('OCR解析失败:', e)
-								uni.showToast({ title: '识别失败', icon: 'none' })
-							}
-						},
-						fail: () => {
-							uni.hideLoading()
-							uni.showToast({ title: '识别失败', icon: 'none' })
-						}
-					})
+					this.isbn = (res.result || '').trim()
+					this.searchISBN()
 				},
 				fail: () => {}
 			})
