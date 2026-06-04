@@ -263,6 +263,11 @@
 										<text class="search-text">搜</text>
 									</view>
 								</view>
+								<view class="inline-field" style="flex:none;margin-left:10rpx;">
+									<view class="scan-btn" @click="chooseImageNoIsbn">
+										<text class="scan-icon">📷</text>
+									</view>
+								</view>
 							</view>
 						</view>
 
@@ -293,14 +298,26 @@
 								<view class="field-label">
 									<text class="label-text">作者</text>
 								</view>
-								<input class="form-input" v-model="noIsbnAuthor" placeholder="请输入作者" />
+								<view class="dropdown-wrapper">
+									<input class="form-input" v-model="noIsbnAuthor" placeholder="请输入作者" style="flex:1;" />
+									<view class="dropdown-btn" @click.stop="noIsbnAuthorDropdownVisible = !noIsbnAuthorDropdownVisible">▼</view>
+									<view v-if="noIsbnAuthorDropdownVisible && noIsbnAuthorOptions.length > 0" class="dropdown-list">
+										<view class="dropdown-item" v-for="(item, idx) in noIsbnAuthorOptions" :key="idx" @click="selectNoIsbnAuthor(item)">{{ item }}</view>
+									</view>
+								</view>
 							</view>
 
 							<view class="form-section">
 								<view class="field-label">
 									<text class="label-text">出版社</text>
 								</view>
-								<input class="form-input" v-model="noIsbnPublisher" placeholder="请输入出版社" />
+								<view class="dropdown-wrapper">
+									<input class="form-input" v-model="noIsbnPublisher" placeholder="请输入出版社" style="flex:1;" />
+									<view class="dropdown-btn" @click.stop="noIsbnPublisherDropdownVisible = !noIsbnPublisherDropdownVisible">▼</view>
+									<view v-if="noIsbnPublisherDropdownVisible && noIsbnPublisherOptions.length > 0" class="dropdown-list">
+										<view class="dropdown-item" v-for="(item, idx) in noIsbnPublisherOptions" :key="idx" @click="selectNoIsbnPublisher(item)">{{ item }}</view>
+									</view>
+								</view>
 							</view>
 
 							<view class="form-section">
@@ -318,6 +335,13 @@
 									<text class="price-symbol">¥</text>
 									<input class="price-input" v-model="noIsbnOriginalPrice" placeholder="请输入定价" type="digit" />
 								</view>
+							</view>
+
+							<view class="form-section">
+								<view class="field-label">
+									<text class="label-text">书号</text>
+								</view>
+								<input class="form-input" v-model="noIsbnUnifyIsbn" placeholder="请输入统一书号" />
 							</view>
 
 							<view class="form-section">
@@ -341,7 +365,13 @@
 								<view class="field-label">
 									<text class="label-text">开本</text>
 								</view>
-								<input class="form-input" v-model="noIsbnFormat" placeholder="请输入开本" />
+								<view class="dropdown-wrapper">
+									<input class="form-input" v-model="noIsbnFormat" placeholder="请选择开本" style="flex:1;" />
+									<view class="dropdown-btn" @click.stop="noIsbnFormatDropdownVisible = !noIsbnFormatDropdownVisible">▼</view>
+									<view v-if="noIsbnFormatDropdownVisible" class="dropdown-list">
+										<view class="dropdown-item" v-for="(item, idx) in noIsbnFormatOptions" :key="idx" @click="selectNoIsbnFormat(item)">{{ item }}</view>
+									</view>
+								</view>
 							</view>
 
 							<view class="form-section">
@@ -834,12 +864,23 @@ export default {
 			noIsbnOriginalPrice: '',
 			noIsbnWordCount: '',
 			noIsbnIsbn: '',
+			noIsbnUnifyIsbn: '',
 			noIsbnSelectedCondition: '六品',
 			noIsbnPrice: '',
 			noIsbnStock: 1,
 			noIsbnPhotoList: [],
 			noIsbnSelectedArea: '',
 			noIsbnWarehouseData: null,
+			
+			// 无ISBN - 下拉列表
+			noIsbnAuthorOptions: [],
+			noIsbnAuthorDropdownVisible: false,
+			noIsbnPublisherOptions: [],
+			noIsbnPublisherDropdownVisible: false,
+			noIsbnFormatDropdownVisible: false,
+			
+			// 开本选项（无ISBN专用）
+			noIsbnFormatOptions: ['2', '4', '6', '8', '12', '16', '18', '20', '24', '32', '36', '40', '42', '48', '50', '60', '64', '72', '大16', '大32', '其他'],
 			
 			// 无ISBN - 市场竞争/在售
 			noIsbnMarketData: { onSale: 0, old: 0, new: 0, sold: 0 },
@@ -1547,6 +1588,9 @@ export default {
 				searchFacet(keyword, { phpsessid, dataType: 1 })
 			]).then(([productsData, onSaleFacet, soldFacet]) => {
 				this.noIsbnLoading = false
+				// 收集作者和出版社选项
+				const authorSet = new Set()
+				const publisherSet = new Set()
 				if (productsData && productsData.total > 0) {
 					const list = (productsData.list || []).slice(0, 12)
 					this.noIsbnProductList = list.map(item => {
@@ -1565,6 +1609,9 @@ export default {
 							shippingFee = parseFloat(item.shippingFee) || 0
 						}
 						const totalPrice = Number((cleanPrice + shippingFee).toFixed(2))
+						// 提取作者和出版社
+						if (item.author) authorSet.add(item.author.trim())
+						if (item.shopName) publisherSet.add(item.shopName.trim())
 						return {
 							image: item.imgBigUrl || '',
 							totalPrice: totalPrice,
@@ -1579,6 +1626,9 @@ export default {
 						}
 					})
 				}
+				// 填充下拉选项
+				this.noIsbnAuthorOptions = Array.from(authorSet).filter(Boolean).slice(0, 10)
+				this.noIsbnPublisherOptions = Array.from(publisherSet).filter(Boolean).slice(0, 10)
 				this.noIsbnMarketData = {
 					onSale: onSaleFacet ? onSaleFacet.totalFound : (productsData ? productsData.total : 0),
 					old: onSaleFacet ? onSaleFacet.oldCount : 0,
@@ -1620,6 +1670,7 @@ export default {
 				'✍️ 作者：' + (this.noIsbnAuthor || '-'),
 				'🏢 出版社：' + (this.noIsbnPublisher || '-'),
 				'🏷️ 定价：' + (this.noIsbnOriginalPrice || '-'),
+				'📖 ISBN：' + (this.noIsbnIsbn || this.noIsbnUnifyIsbn || '-'),
 				'📅 印刷时间：' + (this.noIsbnPrintTime || '-'),
 				'💰 价格：' + (this.noIsbnPrice || '-'),
 				'📊 库存：' + (this.noIsbnStock ?? '-'),
@@ -1643,6 +1694,45 @@ export default {
 					}
 				}
 			})
+		},
+
+		// 无ISBN - 识图上传
+		chooseImageNoIsbn() {
+			uni.showToast({ title: '请拍照或选择图片', icon: 'none' })
+			uni.chooseImage({
+				count: 1,
+				sizeType: ['original', 'compressed'],
+				sourceType: ['album', 'camera'],
+				success: (res) => {
+					const tempFiles = res.tempFilePaths
+					if (tempFiles && tempFiles.length > 0) {
+						// 加入拍照列表
+						this.noIsbnPhotoList = this.noIsbnPhotoList.concat(tempFiles)
+						if (this.noIsbnPhotoList.length > 9) {
+							this.noIsbnPhotoList = this.noIsbnPhotoList.slice(0, 9)
+						}
+						uni.showToast({ title: '已添加识图图片', icon: 'success' })
+					}
+				}
+			})
+		},
+
+		// 无ISBN - 选择作者
+		selectNoIsbnAuthor(item) {
+			this.noIsbnAuthor = item
+			this.noIsbnAuthorDropdownVisible = false
+		},
+
+		// 无ISBN - 选择出版社
+		selectNoIsbnPublisher(item) {
+			this.noIsbnPublisher = item
+			this.noIsbnPublisherDropdownVisible = false
+		},
+
+		// 无ISBN - 选择开本
+		selectNoIsbnFormat(item) {
+			this.noIsbnFormat = item
+			this.noIsbnFormatDropdownVisible = false
 		},
 
 		// 登录 - 接入孔夫子真实登录
@@ -1914,6 +2004,12 @@ export default {
 
 .form-input:focus {
   border-color: #409eff;
+}
+
+/* 下拉内联框：右侧直角与▼按钮衔接 */
+.dropdown-wrapper .form-input {
+  border-radius: 8rpx 0 0 8rpx;
+  border-right: none;
 }
 
 /* ========== 选择器 ========== */
@@ -2462,6 +2558,58 @@ export default {
   font-size: 24rpx;
   color: #909399;
   transition: transform 0.2s;
+}
+
+/* ========== 下拉列表（作者/出版社/开本） ========== */
+.dropdown-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.dropdown-btn {
+  width: 60rpx;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #909399;
+  background-color: #f5f7fa;
+  border: 2rpx solid #dcdfe6;
+  border-left: none;
+  border-radius: 0 8rpx 8rpx 0;
+  flex-shrink: 0;
+}
+
+.dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #ffffff;
+  border: 2rpx solid #dcdfe6;
+  border-radius: 8rpx;
+  max-height: 300rpx;
+  overflow-y: auto;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.1);
+}
+
+.dropdown-item {
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  color: #303133;
+  border-bottom: 1rpx solid #f2f2f2;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:active {
+  background-color: #f5f7fa;
 }
 
 .submit-text {
