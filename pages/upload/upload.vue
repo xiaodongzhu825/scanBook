@@ -1075,7 +1075,8 @@ export default {
 		},
 		noIsbnYearOptions() {
 			const arr = []
-			for (let i = 1960; i <= 2035; i++) arr.push(String(i))
+			const cur = new Date().getFullYear()
+			for (let i = 800; i <= cur; i++) arr.push(String(i))
 			return arr
 		},
 		noIsbnMonthOptions() {
