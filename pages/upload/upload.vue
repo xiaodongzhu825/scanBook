@@ -286,6 +286,9 @@
 									<input class="form-input" v-model="noIsbnStock" type="number" placeholder="库存" style="flex:1;" />
 								</view>
 							</view>
+							<view v-if="noIsbnProductList.length > 0 && calculatedNoIsbnPrice > 0" class="price-suggest-hint" @click="noIsbnPrice = String(calculatedNoIsbnPrice)">
+								<text class="hint-text">系统建议售价 <text class="hint-value">¥{{ calculatedNoIsbnPrice }}</text>（点击填入）</text>
+							</view>
 						</view>
 
 						<!-- ===== 图书详情 ===== -->
@@ -412,31 +415,6 @@
 										<text class="add-icon">+</text>
 										<text class="add-text">拍照</text>
 									</view>
-								</view>
-							</view>
-						</view>
-
-						<!-- ===== 市场竞争 ===== -->
-						<view class="form-section" v-if="noIsbnProductList.length > 0">
-							<view class="section-title">
-								<text class="title-text">市场竞争</text>
-							</view>
-							<view class="market-stats">
-								<view class="stat-item">
-									<text class="stat-label">在售</text>
-									<text class="stat-value">{{ noIsbnMarketData.onSale }}</text>
-								</view>
-								<view class="stat-item">
-									<text class="stat-label">旧</text>
-									<text class="stat-value">{{ noIsbnMarketData.old }}</text>
-								</view>
-								<view class="stat-item">
-									<text class="stat-label">新</text>
-									<text class="stat-value">{{ noIsbnMarketData.new }}</text>
-								</view>
-								<view class="stat-item">
-									<text class="stat-label">已售</text>
-									<text class="stat-value">{{ noIsbnMarketData.sold }}</text>
 								</view>
 							</view>
 						</view>
@@ -875,13 +853,12 @@ export default {
 			noIsbnCategoryColumns: [],
 			noIsbnCategoryIndexes: [],
 			noIsbnCategoryLevels: [],
-			noIsbnMaxCategoryLevel: 6,
+			noIsbnMaxCategoryLevel: 3,
 			noIsbnCategoryPathText: '',
 			noIsbnCategoryLoading: false,
 			noIsbnSelectedCategoryId: '',
 			
 			// 无ISBN - 市场竞争/在售
-			noIsbnMarketData: { onSale: 0, old: 0, new: 0, sold: 0 },
 			noIsbnProductList: [],
 			noIsbnHistoryList: [],
 			noIsbnLoading: false,
@@ -1043,6 +1020,35 @@ export default {
 				list.sort((a, b) => parseFloat(a.bookPrice || 0) - parseFloat(b.bookPrice || 0))
 			}
 			return list
+		},
+		// 无ISBN - 按售价策略排序的商品列表
+		noIsbnSortedProductList() {
+			let list = [...this.noIsbnProductList].slice(0, 12)
+			list.sort((a, b) => parseFloat(a.totalPrice) - parseFloat(b.totalPrice))
+			return list
+		},
+		// 无ISBN - 自动计算售价（策略与ISBN页一致）
+		calculatedNoIsbnPrice() {
+			const sorted = this.noIsbnSortedProductList
+			if (sorted.length === 0) return 0
+			const shipping = Number(this.shippingFee) || 0
+			const discount = Number(this.priceDiscount) || 0
+			const minPrice = Number(this.minBookPrice) || 0
+			let result = 0
+			if (this.priceMode === 'lowest') {
+				const idx = Math.min((Number(this.lowestRank) || 1) - 1, sorted.length - 1)
+				const selectedTotal = parseFloat(sorted[idx].totalPrice) || 0
+				result = selectedTotal - shipping - discount
+			} else {
+				const count = Math.min(Number(this.averageCount) || 2, sorted.length)
+				let sum = 0
+				for (let i = 0; i < count; i++) {
+					sum += parseFloat(sorted[i].totalPrice) || 0
+				}
+				result = (sum / count) - shipping - discount
+			}
+			if (result <= minPrice) return minPrice
+			return parseFloat(result.toFixed(2))
 		},
 		filterPublishers() {
 			const set = new Set()
@@ -1749,12 +1755,6 @@ export default {
 				// 填充下拉选项
 				this.noIsbnAuthorOptions = Array.from(authorSet).filter(Boolean).slice(0, 10)
 				this.noIsbnPublisherOptions = Array.from(publisherSet).filter(Boolean).slice(0, 10)
-				this.noIsbnMarketData = {
-					onSale: onSaleFacet ? onSaleFacet.totalFound : (productsData ? productsData.total : 0),
-					old: onSaleFacet ? onSaleFacet.oldCount : 0,
-					new: onSaleFacet ? onSaleFacet.newCount : 0,
-					sold: soldFacet ? soldFacet.totalFound : 0
-				}
 			}).catch(err => {
 				console.error('无ISBN搜索失败:', err)
 				this.noIsbnLoading = false
@@ -1882,15 +1882,27 @@ export default {
 								const fmt = String(texts.开本).replace('开', '').trim()
 								this.noIsbnFormat = this.noIsbnFormatOptions.includes(fmt) ? fmt : fmt + '开'
 							}
-							if (texts.ISBN && /^\d/.test(texts.ISBN)) this.noIsbnIsbn = texts.ISBN
-							if (texts.书号) this.noIsbnUnifyIsbn = texts.书号
-							if (texts.字数) this.noIsbnWordCount = this.processNoIsbnWordage(texts.字数)
-
-							// 添加到拍照列表
-							this.noIsbnPhotoList.push(filePath)
-							if (this.noIsbnPhotoList.length > 9) {
-								this.noIsbnPhotoList = this.noIsbnPhotoList.slice(0, 9)
+							if (texts.ISBN && /^\d/.test(texts.ISBN)) {
+								// ISBN有值则直接填入
+								this.noIsbnIsbn = texts.ISBN
+								this.noIsbnUnifyIsbn = ''
 							}
+							if (texts.书号) {
+								const bookCode = texts.书号.replace(/\D/g, '')
+								if (bookCode.length === 13 && bookCode.startsWith('978')) {
+									// 978开头的13位数字 → 填入ISBN
+									this.noIsbnIsbn = bookCode
+									this.noIsbnUnifyIsbn = ''
+								} else if (bookCode.length === 13) {
+									// 非978的13位数字 → 填入书号，ISBN随机生成678开头
+									this.noIsbnUnifyIsbn = bookCode
+									this.noIsbnIsbn = '678' + String(Date.now()).slice(-10)
+								} else {
+									// 其他情况 → 直接填入书号
+									this.noIsbnUnifyIsbn = texts.书号
+								}
+							}
+							if (texts.字数) this.noIsbnWordCount = this.processNoIsbnWordage(texts.字数)
 
 							uni.showToast({ title: '识别成功', icon: 'success' })
 
@@ -2315,6 +2327,25 @@ export default {
   height: 100%;
   font-size: 28rpx;
   background: transparent;
+}
+
+/* ========== 价格建议提示 ========== */
+.price-suggest-hint {
+  margin-top: 10rpx;
+  padding: 12rpx 16rpx;
+  background-color: #f0f9eb;
+  border-radius: 8rpx;
+  border: 2rpx solid #e1f3d8;
+}
+
+.price-suggest-hint .hint-text {
+  font-size: 26rpx;
+  color: #67c23a;
+}
+
+.price-suggest-hint .hint-value {
+  font-weight: bold;
+  font-size: 28rpx;
 }
 
 /* ========== 扫描/搜索按钮 ========== */
