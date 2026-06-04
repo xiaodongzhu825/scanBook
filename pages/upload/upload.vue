@@ -1009,7 +1009,7 @@ export default {
 			let list = [...this.productList]
 			// 筛选（精确匹配，同zhizhu）
 			if (this.filterPress) {
-				list = list.filter(item => item.shopName === this.filterPress)
+				list = list.filter(item => item.press === this.filterPress)
 			}
 			if (this.filterAuthor) {
 				list = list.filter(item => item.author === this.filterAuthor)
@@ -1054,7 +1054,7 @@ export default {
 		filterPublishers() {
 			const set = new Set()
 			this.productList.slice(0, 12).forEach(item => {
-				if (item.shopName) set.add(item.shopName)
+				if (item.press) set.add(item.press)
 			})
 			return Array.from(set)
 		},
@@ -1148,7 +1148,8 @@ export default {
 				return
 			}
 			uni.scanCode({
-				onlyFromCamera: false,
+				onlyFromCamera: true,
+				scanType: ['barcode'],
 				success: (res) => {
 					this.isbn = (res.result || '').trim()
 					this.searchISBN()
@@ -1244,6 +1245,7 @@ export default {
 							shopName: item.shopName || '',
 							bookName: item.title || '',
 							author: item.author || '',
+							press: item.press || '',
 							pubDate: item.pubDateText || '',
 							bookId: item.id || ''
 						}
@@ -1825,6 +1827,7 @@ export default {
 							shopName: item.shopName || '',
 							bookName: item.title || '',
 							author: item.author || '',
+							press: item.press || '',
 							pubDate: item.pubDateText || '',
 							bookId: item.id || ''
 						}
@@ -1895,6 +1898,7 @@ export default {
 							shopName: item.shopName || '',
 							bookName: item.title || '',
 							author: item.author || '',
+							press: item.press || '',
 							pubDate: item.pubDateText || '',
 							bookId: item.id || ''
 						}
@@ -2381,6 +2385,7 @@ picker {
 /* ========== 行内字段 ========== */
 .inline-fields {
   display: flex;
+  align-items: center;
   gap: 16rpx;
 }
 
@@ -2433,6 +2438,7 @@ picker {
 
 /* ========== 版权页比价按钮 ========== */
 .copyright-btn {
+  margin-left: auto;
   padding: 8rpx 16rpx;
   background-color: #409eff;
   border-radius: 6rpx;
