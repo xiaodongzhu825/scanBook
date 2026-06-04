@@ -1379,7 +1379,7 @@ export default {
 			}
 		},
 
-		async loadPopupLocations(warehouseId, keepExisting = false) {
+		async loadPopupLocations(warehouseId, keepExisting = false, searchKeyword = '') {
 			if (!keepExisting) {
 				this.popupLoadingLocation = true
 				this.popupLocPage = 1
@@ -1388,10 +1388,15 @@ export default {
 				this.popupLocTotal = 0
 			}
 			try {
-				const res = await getLocationList({
+				const params = {
 					warehouse_id: warehouseId, type: 1, status: 1,
 					page: this.popupLocPage, page_size: this.popupLocPageSize
-				})
+				}
+				// 如果传了搜索关键词,交给后端过滤
+				if (searchKeyword) {
+					params.code = searchKeyword
+				}
+				const res = await getLocationList(params)
 				console.log('【货位列表】load响应:', JSON.stringify(res))
 				// 兼容多种响应格式：{ code:0, data:{ list:[], total:100 } } 或直接 { list:[], total:100 }
 				let newList = []
@@ -1549,21 +1554,15 @@ export default {
 								return code === search || name === search || code.includes(search)
 							})
 							if (whIdx !== -1) {
-								// 切换到该仓库，并等待货位接口重新请求完成
-								await this.selectPopupWarehouse(whIdx)
-								// 货位列表已重新加载，在其中搜索匹配
-								const matchedLoc = this.popupAllLocationList.find(l => {
-									const code = (l.code || '').toLowerCase()
-									const name = (l.name || '').toLowerCase()
-									const search = locCode.toLowerCase()
-									return code === search || name === search ||
-										code.includes(search) || search.includes(code)
-								})
-								if (matchedLoc) {
-									this.popupSelectedLoc = matchedLoc
+								// 切换到该仓库,携带货位号请求后端过滤
+								await this.loadPopupLocations(this.popupWarehouseList[whIdx].id, false, locCode)
+								this.popupActiveWhIndex = whIdx
+								this.popupSelectedWh = this.popupWarehouseList[whIdx]
+								// 如果后端返回了匹配的货位,自动选中
+								if (this.popupLocationList.length > 0) {
+									this.popupSelectedLoc = this.popupLocationList[0]
 									this.popupLocationSearch = ''
-									this.popupLocationList = [...this.popupAllLocationList]
-									uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + matchedLoc.code, icon: 'success' })
+									uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + this.popupLocationList[0].code, icon: 'success' })
 								} else {
 									uni.showToast({ title: '已切换仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
 								}
