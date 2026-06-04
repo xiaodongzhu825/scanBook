@@ -286,6 +286,9 @@
 									<input class="form-input" v-model="noIsbnStock" type="number" placeholder="库存" style="flex:1;" />
 								</view>
 							</view>
+							<view v-if="noIsbnProductList.length > 0 && calculatedNoIsbnPrice > 0" class="price-suggest-hint" @click="noIsbnPrice = String(calculatedNoIsbnPrice)">
+								<text class="hint-text">系统建议售价 <text class="hint-value">¥{{ calculatedNoIsbnPrice }}</text>（点击填入）</text>
+							</view>
 						</view>
 
 						<!-- ===== 图书详情 ===== -->
@@ -418,13 +421,8 @@
 
 						<!-- ===== 在售商品 ===== -->
 						<view class="form-section" v-if="noIsbnProductList.length > 0">
-							<view class="section-header-row">
-								<view class="section-title">
-									<text class="title-text">在售商品</text>
-								</view>
-								<view class="copyright-btn" @click="searchNoIsbnCopyright">
-									<text class="copyright-btn-text">版权页比价</text>
-								</view>
+							<view class="section-title">
+								<text class="title-text">在售商品</text>
 							</view>
 							<view class="loading-box" v-if="noIsbnLoading">
 								<view class="loading-spinner"></view>
@@ -462,6 +460,13 @@
 										<text class="history-stock">库存{{ item.stock }}本</text>
 									</view>
 								</view>
+							</view>
+						</view>
+
+						<!-- ===== 确认上传 ===== -->
+						<view class="submit-area">
+							<view class="submit-btn" @click="submitNoIsbnUpload" :class="{ disabled: noIsbnSubmitting }">
+								<text class="submit-btn-text">确认上传</text>
 							</view>
 						</view>
 
@@ -857,6 +862,7 @@ export default {
 			noIsbnProductList: [],
 			noIsbnHistoryList: [],
 			noIsbnLoading: false,
+			noIsbnSubmitting: false,
 			noIsbnDetailExpanded: false,
 			
 			// 筛选
@@ -1625,56 +1631,42 @@ export default {
 				return
 			}
 
+			// ISBN与售价不能为空
+			if (!this.isbn) {
+				uni.showToast({ title: 'ISBN不能为空', icon: 'none' })
+				return
+			}
+			if (!this.price) {
+				uni.showToast({ title: '售价不能为空', icon: 'none' })
+				return
+			}
+
+			// 确认弹窗
 			const warehouseName = warehouseData.warehouseName || warehouseData.name || ''
 			const locCode = warehouseData.locationCode || warehouseData.code || ''
 			const locationText = warehouseName + (locCode ? ' - ' + locCode : '')
+			const isbn = this.isbn || '-'
+			const bookName = this.bookName || '-'
+			const price = this.price || '-'
+			const stock = this.stock ?? '-'
+			const author = this.author || '-'
+			const publisher = this.publisher || '-'
+			const fixPrice = this.fixPrice || '-'
+			const printTime = this.printTime || '-'
+			const photoCount = this.photoList.length
 
-			let contentLines
-			if (this.currentTab === 'isbn') {
-				// ISBN页
-				if (!this.isbn) {
-					uni.showToast({ title: 'ISBN不能为空', icon: 'none' })
-					return
-				}
-				if (!this.price) {
-					uni.showToast({ title: '售价不能为空', icon: 'none' })
-					return
-				}
-				contentLines = [
-					'📦 货区：' + locationText,
-					'📖 ISBN：' + (this.isbn || '-'),
-					'📕 书名：' + (this.bookName || '-'),
-					'💰 价格：' + (this.price || '-'),
-					'📊 库存：' + (this.stock ?? '-'),
-					'✍️ 作者：' + (this.author || '-'),
-					'🏢 出版社：' + (this.publisher || '-'),
-					'🏷️ 定价：' + (this.fixPrice || '-'),
-					'📅 印刷时间：' + (this.printTime || '-'),
-					'📷 图片：' + this.photoList.length + '张'
-				]
-			} else {
-				// 无ISBN页
-				if (!this.noIsbnPrice) {
-					uni.showToast({ title: '售价不能为空', icon: 'none' })
-					return
-				}
-				if (!this.noIsbnBookName) {
-					uni.showToast({ title: '书名不能为空', icon: 'none' })
-					return
-				}
-				contentLines = [
-					'📦 货区：' + locationText,
-					'📕 书名：' + (this.noIsbnBookName || '-'),
-					'✍️ 作者：' + (this.noIsbnAuthor || '-'),
-					'🏢 出版社：' + (this.noIsbnPublisher || '-'),
-					'🏷️ 定价：' + (this.noIsbnOriginalPrice || '-'),
-					'📖 ISBN：' + (this.noIsbnIsbn || this.noIsbnUnifyIsbn || '-'),
-					'📅 印刷时间：' + (this.noIsbnPrintTime || '-'),
-					'💰 价格：' + (this.noIsbnPrice || '-'),
-					'📊 库存：' + (this.noIsbnStock ?? '-'),
-					'📷 图片：' + this.noIsbnPhotoList.length + '张'
-				]
-			}
+			const contentLines = [
+				'📦 货区：' + locationText,
+				'📖 ISBN：' + isbn,
+				'📕 书名：' + bookName,
+				'💰 价格：' + price,
+				'📊 库存：' + stock,
+				'✍️ 作者：' + author,
+				'🏢 出版社：' + publisher,
+				'🏷️ 定价：' + fixPrice,
+				'📅 印刷时间：' + printTime,
+				'📷 图片：' + photoCount + '张'
+			]
 
 			uni.showModal({
 				title: '确认上传',
@@ -1698,6 +1690,7 @@ export default {
 				uni.hideLoading()
 				this.isSubmitting = false
 				uni.showToast({ title: '上传成功', icon: 'success' })
+				// 清空表单待后续对接真实API
 			}, 1500)
 		},
 
@@ -1762,12 +1755,6 @@ export default {
 				// 填充下拉选项
 				this.noIsbnAuthorOptions = Array.from(authorSet).filter(Boolean).slice(0, 10)
 				this.noIsbnPublisherOptions = Array.from(publisherSet).filter(Boolean).slice(0, 10)
-				// 自动计算并填入售价
-				this.$nextTick(() => {
-					if (this.calculatedNoIsbnPrice > 0) {
-						this.noIsbnPrice = String(this.calculatedNoIsbnPrice)
-					}
-				})
 			}).catch(err => {
 				console.error('无ISBN搜索失败:', err)
 				this.noIsbnLoading = false
@@ -1775,70 +1762,57 @@ export default {
 			})
 		},
 
-		// 无ISBN - 版权页比价（带作者+出版社精确搜索）
-		searchNoIsbnCopyright() {
-			if (!this.isLoggedIn) {
-				uni.showToast({ title: '请先登录孔网账号', icon: 'none' })
+		// 无ISBN - 确认上传
+		submitNoIsbnUpload() {
+			if (this.noIsbnSubmitting) return
+
+			const warehouseData = this.currentTab === 'no-isbn' ? this.noIsbnWarehouseData : null
+			if (!warehouseData) {
+				uni.showToast({ title: '请选择货区', icon: 'none' })
+				return
+			}
+			if (!this.noIsbnPrice) {
+				uni.showToast({ title: '售价不能为空', icon: 'none' })
 				return
 			}
 			if (!this.noIsbnBookName) {
-				uni.showToast({ title: '请输入书名', icon: 'none' })
+				uni.showToast({ title: '书名不能为空', icon: 'none' })
 				return
 			}
-			this.noIsbnLoading = true
-			this.noIsbnProductList = []
-			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
-			const keyword = this.noIsbnBookName
-			searchProducts(keyword, {
-				phpsessid,
-				sortType: '7',
-				quality: this.noIsbnConditionValue,
-				publisher: this.noIsbnPublisher,
-				author: this.noIsbnAuthor
-			}).then((productsData) => {
-				this.noIsbnLoading = false
-				if (productsData && productsData.total > 0) {
-					const list = (productsData.list || []).slice(0, 12)
-					this.noIsbnProductList = list.map(item => {
-						const cleanPrice = parseFloat((item.priceText || '0').replace(/[^\d.]/g, ''))
-						let shippingFee = 0
-						if (item.postage) {
-							if (typeof item.postage === 'number' || typeof item.postage === 'string') {
-								shippingFee = parseFloat(item.postage) || 0
-							} else if (item.postage.shippingList && item.postage.shippingList.length > 0) {
-								shippingFee = parseFloat(item.postage.shippingList[0].shippingFee || 0)
-							} else if (item.postage.shippingFee) {
-								shippingFee = parseFloat(item.postage.shippingFee || 0)
-							}
-						}
-						if (shippingFee === 0 && item.shippingFee) {
-							shippingFee = parseFloat(item.shippingFee) || 0
-						}
-						const totalPrice = Number((cleanPrice + shippingFee).toFixed(2))
-						return {
-							image: item.imgBigUrl || '',
-							totalPrice: totalPrice,
-							bookPrice: cleanPrice,
-							shippingFee: shippingFee,
-							condition: item.qualityText || '',
-							shopName: item.shopName || '',
-							bookName: item.title || '',
-							author: item.author || '',
-							pubDate: item.pubDateText || '',
-							bookId: item.id || ''
-						}
-					})
-					// 自动计算并填入售价
-					this.$nextTick(() => {
-						if (this.calculatedNoIsbnPrice > 0) {
-							this.noIsbnPrice = String(this.calculatedNoIsbnPrice)
-						}
-					})
+
+			const warehouseName = warehouseData.warehouseName || warehouseData.name || ''
+			const locCode = warehouseData.locationCode || warehouseData.code || ''
+			const locationText = warehouseName + (locCode ? ' - ' + locCode : '')
+
+			const contentLines = [
+				'📦 货区：' + locationText,
+				'📕 书名：' + (this.noIsbnBookName || '-'),
+				'✍️ 作者：' + (this.noIsbnAuthor || '-'),
+				'🏢 出版社：' + (this.noIsbnPublisher || '-'),
+				'🏷️ 定价：' + (this.noIsbnOriginalPrice || '-'),
+				'📖 ISBN：' + (this.noIsbnIsbn || this.noIsbnUnifyIsbn || '-'),
+				'📅 印刷时间：' + (this.noIsbnPrintTime || '-'),
+				'💰 价格：' + (this.noIsbnPrice || '-'),
+				'📊 库存：' + (this.noIsbnStock ?? '-'),
+				'📷 图片：' + this.noIsbnPhotoList.length + '张'
+			]
+
+			uni.showModal({
+				title: '确认上传',
+				content: contentLines.join('\n'),
+				confirmText: '确认上传',
+				cancelText: '取消',
+				success: (res) => {
+					if (res.confirm) {
+						this.noIsbnSubmitting = true
+						uni.showLoading({ title: '上传中...' })
+						setTimeout(() => {
+							uni.hideLoading()
+							this.noIsbnSubmitting = false
+							uni.showToast({ title: '上传成功', icon: 'success' })
+						}, 1500)
+					}
 				}
-			}).catch(err => {
-				console.error('版权比价失败:', err)
-				this.noIsbnLoading = false
-				uni.showToast({ title: '比价失败', icon: 'none' })
 			})
 		},
 
@@ -1909,19 +1883,23 @@ export default {
 								this.noIsbnFormat = this.noIsbnFormatOptions.includes(fmt) ? fmt : fmt + '开'
 							}
 							if (texts.ISBN && /^\d/.test(texts.ISBN)) {
+								// ISBN有值则直接填入
 								this.noIsbnIsbn = texts.ISBN
 								this.noIsbnUnifyIsbn = ''
 							}
 							if (texts.书号) {
 								const bookCode = texts.书号.replace(/\D/g, '')
 								if (bookCode.length === 13 && bookCode.startsWith('978')) {
-									// 978开头的13位数字 → 填入ISBN，书号清空
+									// 978开头的13位数字 → 填入ISBN
 									this.noIsbnIsbn = bookCode
 									this.noIsbnUnifyIsbn = ''
-								} else {
-									// 其他情况 → 书号保留原值，ISBN生成678开头13位数字
-									this.noIsbnUnifyIsbn = texts.书号
+								} else if (bookCode.length === 13) {
+									// 非978的13位数字 → 填入书号，ISBN随机生成678开头
+									this.noIsbnUnifyIsbn = bookCode
 									this.noIsbnIsbn = '678' + String(Date.now()).slice(-10)
+								} else {
+									// 其他情况 → 直接填入书号
+									this.noIsbnUnifyIsbn = texts.书号
 								}
 							}
 							if (texts.字数) this.noIsbnWordCount = this.processNoIsbnWordage(texts.字数)
@@ -2351,20 +2329,23 @@ export default {
   background: transparent;
 }
 
-/* ========== 版权页比价按钮 ========== */
-.copyright-btn {
-  padding: 8rpx 16rpx;
-  background-color: #409eff;
-  border-radius: 6rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* ========== 价格建议提示 ========== */
+.price-suggest-hint {
+  margin-top: 10rpx;
+  padding: 12rpx 16rpx;
+  background-color: #f0f9eb;
+  border-radius: 8rpx;
+  border: 2rpx solid #e1f3d8;
 }
 
-.copyright-btn-text {
-  font-size: 24rpx;
-  color: #ffffff;
-  font-weight: 500;
+.price-suggest-hint .hint-text {
+  font-size: 26rpx;
+  color: #67c23a;
+}
+
+.price-suggest-hint .hint-value {
+  font-weight: bold;
+  font-size: 28rpx;
 }
 
 /* ========== 扫描/搜索按钮 ========== */
@@ -2787,6 +2768,11 @@ export default {
   justify-content: center;
 }
 
+.submit-area {
+  margin-top: 30rpx;
+  padding: 0 20rpx;
+}
+
 .submit-btn.disabled {
   opacity: 0.6;
 }
@@ -2867,6 +2853,12 @@ export default {
 }
 
 .submit-text {
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.submit-btn-text {
   color: #ffffff;
   font-size: 32rpx;
   font-weight: 600;
