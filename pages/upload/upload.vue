@@ -54,13 +54,13 @@
 								<text class="label-text">货区 & ISBN</text>
 							</view>
 							<view class="inline-fields" style="flex:1;">
-								<view class="inline-field narrow">
+								<view class="inline-field wide">
 									<view class="picker-box" style="flex:1;" @click="openWarehousePicker('isbn')">
 										<text class="picker-value">{{ isbnSelectedArea || '请选择货区' }}</text>
 										<text class="picker-arrow">›</text>
 									</view>
 								</view>
-								<view class="inline-field">
+								<view class="inline-field narrow">
 									<view class="isbn-input-box" style="flex:1;">
 										<input class="isbn-input" v-model="isbn" placeholder="ISBN或扫码" maxlength="13"/>
 										<view class="scan-btn" @click="scanISBN">
@@ -1742,7 +1742,11 @@ export default {
 
 .inline-field.narrow {
   flex: none;
-  width: 200rpx;
+  width: 160rpx;
+}
+
+.inline-field.wide {
+  flex: 1;
 }
 
 /* ========== 价格输入 ========== */
