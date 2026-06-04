@@ -355,8 +355,17 @@
 								<view class="field-label">
 									<text class="label-text">图书分类</text>
 								</view>
-								<view class="category-select" @click="showCategoryPopup = true">
-									<text class="category-value">{{ noIsbnSelectedCategory || '请选择分类' }}</text>
+								<picker v-if="noIsbnCategoryColumns.length > 0" mode="multiSelector" :range="noIsbnCategoryColumns" range-key="name" @columnchange="onNoIsbnCategoryColumnChange" @change="onNoIsbnCategoryChange" :value="noIsbnCategoryIndexes">
+									<view class="category-select">
+										<text class="category-value">{{ noIsbnCategoryPathText || '请选择分类' }}</text>
+										<text class="picker-arrow">›</text>
+									</view>
+								</picker>
+								<view v-else-if="noIsbnCategoryLoading" class="category-select">
+									<text class="category-value" style="color:#999;">加载中...</text>
+								</view>
+								<view v-else class="category-select" @click="loadNoIsbnCategory">
+									<text class="category-value" style="color:#999;">点击加载分类</text>
 									<text class="picker-arrow">›</text>
 								</view>
 							</view>
@@ -741,26 +750,6 @@
 			</view>
 		</view>
 
-		<!-- 分类选择弹窗 -->
-		<view class="filter-popup" v-if="showCategoryPopup" @click="showCategoryPopup = false">
-			<view class="popup-content category-picker-popup" @click.stop>
-				<view class="popup-header">
-					<text class="popup-title">选择分类</text>
-					<text class="popup-close" @click="showCategoryPopup = false">✕</text>
-				</view>
-				<view class="category-picker-body">
-					<picker-view class="category-picker-view" :value="categoryPickerValue" @change="onCategoryChange">
-						<picker-view-column>
-							<view class="picker-item" v-for="(item, index) in categoryList" :key="index">{{ item }}</view>
-						</picker-view-column>
-					</picker-view>
-				</view>
-				<view class="popup-footer">
-					<view class="confirm-btn" @click="confirmCategory">确定</view>
-				</view>
-			</view>
-		</view>
-
 		<!-- 仓库货位选择弹窗 -->
 		<view class="warehouse-overlay" v-if="showWarehousePicker" @click="closeWarehousePicker">
 			<view class="warehouse-popup" @click.stop>
@@ -859,7 +848,6 @@ export default {
 			noIsbnBookName: '',
 			noIsbnAuthor: '',
 			noIsbnPublisher: '',
-			noIsbnSelectedCategory: '',
 			noIsbnFormat: '',
 			noIsbnOriginalPrice: '',
 			noIsbnWordCount: '',
@@ -882,6 +870,16 @@ export default {
 			// 开本选项（无ISBN专用）
 			noIsbnFormatOptions: ['2', '4', '6', '8', '12', '16', '18', '20', '24', '32', '36', '40', '42', '48', '50', '60', '64', '72', '大16', '大32', '其他'],
 			
+			// 分类（从API加载）
+			noIsbnCategoryData: [],
+			noIsbnCategoryColumns: [],
+			noIsbnCategoryIndexes: [],
+			noIsbnCategoryLevels: [],
+			noIsbnMaxCategoryLevel: 6,
+			noIsbnCategoryPathText: '',
+			noIsbnCategoryLoading: false,
+			noIsbnSelectedCategoryId: '',
+			
 			// 无ISBN - 市场竞争/在售
 			noIsbnMarketData: { onSale: 0, old: 0, new: 0, sold: 0 },
 			noIsbnProductList: [],
@@ -889,11 +887,6 @@ export default {
 			noIsbnLoading: false,
 			noIsbnSubmitting: false,
 			noIsbnDetailExpanded: false,
-			
-			// 分类
-			showCategoryPopup: false,
-			categoryList: ['文学', '艺术', '历史', '哲学', '科学', '技术', '教育', '经济', '政治', '军事', '法律', '社会', '文化', '语言', '工具书', '其他'],
-			categoryPickerValue: [0],
 			
 			// 筛选
 			showFilterPopup: false,
@@ -964,6 +957,8 @@ export default {
 		this.loadSavedAccounts()
 		// 恢复定价策略配置
 		this.loadPriceConfig()
+		// 预加载图书分类
+		this.loadNoIsbnCategory()
 		// 恢复选择的仓库货位
 		const savedWhData = uni.getStorageSync('selectedWarehouseData')
 		if (savedWhData) {
@@ -1478,13 +1473,138 @@ export default {
 		},
 
 		// 分类
-		onCategoryChange(e) {
-			this.categoryPickerValue = e.detail.value
+		// 无ISBN - 分类选择器：列变化
+		onNoIsbnCategoryColumnChange(e) {
+			const { column, value } = e.detail
+			this.noIsbnCategoryIndexes[column] = value
+			this.noIsbnCategoryLevels[column] = this.noIsbnCategoryColumns[column][value]
+			if (column < this.noIsbnMaxCategoryLevel - 1) {
+				this.updateNoIsbnSubsequentColumns(column + 1)
+			}
+			this.updateNoIsbnCategoryPathText()
 		},
 
-		confirmCategory() {
-			this.noIsbnSelectedCategory = this.categoryList[this.categoryPickerValue[0]]
-			this.showCategoryPopup = false
+		// 无ISBN - 分类选择器：确认选择
+		onNoIsbnCategoryChange(e) {
+			const values = e.detail.value
+			this.noIsbnCategoryIndexes = [...values]
+			for (let i = 0; i < values.length; i++) {
+				if (this.noIsbnCategoryColumns[i] && this.noIsbnCategoryColumns[i][values[i]]) {
+					this.noIsbnCategoryLevels[i] = this.noIsbnCategoryColumns[i][values[i]]
+				}
+			}
+			this.updateNoIsbnCategoryPathText()
+			this.updateNoIsbnSelectedCategoryId()
+		},
+
+		updateNoIsbnSubsequentColumns(startColumn) {
+			const parentCategory = this.noIsbnCategoryLevels[startColumn - 1]
+			if (!parentCategory || !parentCategory.children || parentCategory.children.length === 0) {
+				for (let i = startColumn; i < this.noIsbnMaxCategoryLevel; i++) {
+					this.noIsbnCategoryColumns[i] = [{ name: '暂无数据', id: '' }]
+					this.noIsbnCategoryIndexes[i] = 0
+					this.noIsbnCategoryLevels[i] = { name: '暂无数据', id: '' }
+				}
+				return
+			}
+			this.noIsbnCategoryColumns[startColumn] = parentCategory.children
+			this.noIsbnCategoryIndexes[startColumn] = 0
+			this.noIsbnCategoryLevels[startColumn] = parentCategory.children[0]
+			if (startColumn < this.noIsbnMaxCategoryLevel - 1) {
+				this.updateNoIsbnSubsequentColumns(startColumn + 1)
+			}
+		},
+
+		updateNoIsbnCategoryPathText() {
+			const validLevels = this.noIsbnCategoryLevels.filter(level => level && level.name && level.name !== '暂无数据')
+			this.noIsbnCategoryPathText = validLevels.map(level => level.name).join(' / ')
+		},
+
+		updateNoIsbnSelectedCategoryId() {
+			const validLevels = this.noIsbnCategoryLevels.filter(level => level && level.id && level.id !== '')
+			this.noIsbnSelectedCategoryId = validLevels.length > 0 ? validLevels[validLevels.length - 1].id : ''
+		},
+
+		// 加载图书分类（从API）
+		loadNoIsbnCategory() {
+			this.noIsbnCategoryLoading = true
+			const cookies = uni.getStorageSync('cookies') || this.kongfzToken || ''
+			uni.request({
+				url: 'https://api.buzhiyushu.cn/api/kongfz/getCategory',
+				method: 'GET',
+				data: { token: cookies },
+				header: { 'Content-Type': 'application/json' },
+				success: (res) => {
+					const responseData = res.data
+					if (responseData && responseData.successResponse) {
+						this.noIsbnCategoryData = responseData.successResponse
+						this.initNoIsbnCategoryPicker()
+					} else {
+						console.error('获取分类数据失败:', responseData)
+						// 使用本地默认分类
+						this.loadDefaultNoIsbnCategory()
+					}
+				},
+				fail: (err) => {
+					console.error('获取分类数据异常:', err)
+					this.loadDefaultNoIsbnCategory()
+				},
+				complete: () => {
+					this.noIsbnCategoryLoading = false
+				}
+			})
+		},
+
+		loadDefaultNoIsbnCategory() {
+			const defaultCategories = [
+				{ name: '文学', id: '1', level: 1, children: [{ name: '中国文学', id: '11', level: 2, children: [] }] },
+				{ name: '艺术', id: '2', level: 1, children: [] },
+				{ name: '历史', id: '3', level: 1, children: [] },
+				{ name: '哲学', id: '4', level: 1, children: [] },
+				{ name: '科学', id: '5', level: 1, children: [] },
+				{ name: '技术', id: '6', level: 1, children: [] },
+				{ name: '教育', id: '7', level: 1, children: [] },
+				{ name: '经济', id: '8', level: 1, children: [] },
+				{ name: '政治', id: '9', level: 1, children: [] },
+				{ name: '军事', id: '10', level: 1, children: [] },
+				{ name: '法律', id: '11', level: 1, children: [] },
+				{ name: '社会', id: '12', level: 1, children: [] },
+				{ name: '文化', id: '13', level: 1, children: [] },
+				{ name: '语言', id: '14', level: 1, children: [] },
+				{ name: '工具书', id: '15', level: 1, children: [] },
+				{ name: '其他', id: '16', level: 1, children: [] }
+			]
+			this.noIsbnCategoryData = defaultCategories
+			this.initNoIsbnCategoryPicker()
+		},
+
+		initNoIsbnCategoryPicker() {
+			this.noIsbnCategoryColumns = []
+			this.noIsbnCategoryLevels = []
+			this.noIsbnCategoryIndexes = []
+			const level1Categories = (this.noIsbnCategoryData || []).filter(item => item.level === 1)
+			if (level1Categories.length === 0) return
+			this.noIsbnCategoryColumns[0] = level1Categories
+			this.noIsbnCategoryIndexes[0] = 0
+			let currentParent = level1Categories[0]
+			let currentLevel = 1
+			this.noIsbnCategoryLevels[0] = currentParent
+			while (currentLevel < this.noIsbnMaxCategoryLevel) {
+				const children = currentParent.children || []
+				if (children.length === 0) break
+				this.noIsbnCategoryColumns[currentLevel] = children
+				this.noIsbnCategoryIndexes[currentLevel] = 0
+				this.noIsbnCategoryLevels[currentLevel] = children[0]
+				currentParent = children[0]
+				currentLevel++
+			}
+			while (this.noIsbnCategoryColumns.length < this.noIsbnMaxCategoryLevel) {
+				this.noIsbnCategoryColumns.push([{ name: '暂无数据', id: '' }])
+				this.noIsbnCategoryIndexes.push(0)
+				this.noIsbnCategoryLevels.push({ name: '暂无数据', id: '' })
+			}
+			this.updateNoIsbnCategoryPathText()
+			this.updateNoIsbnSelectedCategoryId()
 		},
 
 		// 商品预览
@@ -1696,25 +1816,114 @@ export default {
 			})
 		},
 
-		// 无ISBN - 识图上传
+		// 无ISBN - 识图上传（拍照→OCR识别→自动填写表单）
 		chooseImageNoIsbn() {
-			uni.showToast({ title: '请拍照或选择图片', icon: 'none' })
+			uni.showToast({ title: '请选择图书封面', icon: 'none' })
 			uni.chooseImage({
 				count: 1,
 				sizeType: ['original', 'compressed'],
 				sourceType: ['album', 'camera'],
 				success: (res) => {
-					const tempFiles = res.tempFilePaths
-					if (tempFiles && tempFiles.length > 0) {
-						// 加入拍照列表
-						this.noIsbnPhotoList = this.noIsbnPhotoList.concat(tempFiles)
-						if (this.noIsbnPhotoList.length > 9) {
-							this.noIsbnPhotoList = this.noIsbnPhotoList.slice(0, 9)
-						}
-						uni.showToast({ title: '已添加识图图片', icon: 'success' })
-					}
+					const tempFilePaths = res.tempFilePaths
+					if (!tempFilePaths || tempFilePaths.length === 0) return
+					const filePath = tempFilePaths[0]
+					uni.showLoading({ title: '识别中...', mask: true })
+					// 压缩图片（大于500KB）
+					this.compressNoIsbnImage(filePath).then(compressedPath => {
+						this.ocrNoIsbnImage(compressedPath)
+					})
 				}
 			})
+		},
+
+		// 压缩图片
+		compressNoIsbnImage(filePath) {
+			return new Promise((resolve) => {
+				uni.getFileInfo({
+					filePath: filePath,
+					success: (info) => {
+						if (info.size > 500 * 1024) {
+							uni.compressImage({
+								src: filePath,
+								quality: 80,
+								success: (res) => resolve(res.tempFilePath),
+								fail: () => resolve(filePath)
+							})
+						} else {
+							resolve(filePath)
+						}
+					},
+					fail: () => resolve(filePath)
+				})
+			})
+		},
+
+		// OCR识别并填充表单
+		ocrNoIsbnImage(filePath) {
+			uni.uploadFile({
+				url: 'https://book.xcx.ocr.buzhiyushu.cn/ocr',
+				filePath: filePath,
+				name: 'file',
+				success: (res) => {
+					uni.hideLoading()
+					try {
+						const ocrData = JSON.parse(res.data)
+						if (ocrData && ocrData.texts) {
+							const texts = ocrData.texts
+							// 自动填充表单
+							if (texts.书名) this.noIsbnBookName = texts.书名
+							if (texts.作者) this.noIsbnAuthor = texts.作者
+							if (texts.出版社) this.noIsbnPublisher = texts.出版社
+							if (texts.出版时间) this.noIsbnPrintTime = texts.出版时间
+							if (texts.定价) {
+								this.noIsbnOriginalPrice = texts.定价.replace('元', '').trim()
+							}
+							if (texts.开本) {
+								const fmt = String(texts.开本).replace('开', '').trim()
+								this.noIsbnFormat = this.noIsbnFormatOptions.includes(fmt) ? fmt : fmt + '开'
+							}
+							if (texts.ISBN && /^\d/.test(texts.ISBN)) this.noIsbnIsbn = texts.ISBN
+							if (texts.书号) this.noIsbnUnifyIsbn = texts.书号
+							if (texts.字数) this.noIsbnWordCount = this.processNoIsbnWordage(texts.字数)
+
+							// 添加到拍照列表
+							this.noIsbnPhotoList.push(filePath)
+							if (this.noIsbnPhotoList.length > 9) {
+								this.noIsbnPhotoList = this.noIsbnPhotoList.slice(0, 9)
+							}
+
+							uni.showToast({ title: '识别成功', icon: 'success' })
+
+							// 有书名则自动搜索孔网比价
+							if (this.noIsbnBookName) {
+								setTimeout(() => this.searchNoIsbn(), 500)
+							}
+						} else {
+							uni.showToast({ title: '识别失败，未识别到图书信息', icon: 'none' })
+						}
+					} catch (e) {
+						console.error('OCR解析失败:', e)
+						uni.showToast({ title: '识别失败，请重试', icon: 'none' })
+					}
+				},
+				fail: (err) => {
+					uni.hideLoading()
+					console.error('OCR请求失败:', err)
+					uni.showToast({ title: '网络错误，请重试', icon: 'none' })
+				}
+			})
+		},
+
+		// 处理字数文本（如"300千字"→300000）
+		processNoIsbnWordage(wordage) {
+			if (!wordage) return ''
+			if (typeof wordage === 'string' && wordage.includes('千字')) {
+				const match = wordage.match(/(\d+(\.\d+)?)/)
+				if (match && match[1]) {
+					return Math.round(parseFloat(match[1]) * 1000).toString()
+				}
+			}
+			return wordage.replace(/[^\d]/g, '')
 		},
 
 		// 无ISBN - 选择作者
@@ -2739,28 +2948,6 @@ export default {
 }
 
 /* ========== 分类选择弹窗 ========== */
-.category-picker-popup {
-  height: 50vh;
-}
-
-.category-picker-body {
-  height: calc(50vh - 120rpx);
-}
-
-.category-picker-view {
-  width: 100%;
-  height: 100%;
-}
-
-.picker-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28rpx;
-  color: #303133;
-  height: 80rpx;
-}
-
 /* ========== 分类选择（input风格） ========== */
 .category-select {
   background-color: #ffffff;
