@@ -886,6 +886,7 @@ export default {
 			popupLocLoadingMore: false,
 			popupLocationSearch: '',
 			popupAllLocationList: [],
+			popupLocTotal: 0,
 			popupRefreshing: false,
 			_pendingPreselectWh: null,
 			_pendingPreselectLoc: null,
@@ -1378,31 +1379,46 @@ export default {
 			}
 		},
 
-		async loadPopupLocations(warehouseId) {
-			this.popupLoadingLocation = true
-			this.popupLocPage = 1
-			this.popupLocHasMore = true
-			this.popupAllLocationList = []
+		async loadPopupLocations(warehouseId, keepExisting = false) {
+			if (!keepExisting) {
+				this.popupLoadingLocation = true
+				this.popupLocPage = 1
+				this.popupLocHasMore = true
+				this.popupAllLocationList = []
+				this.popupLocTotal = 0
+			}
 			try {
 				const res = await getLocationList({
 					warehouse_id: warehouseId, type: 1, status: 1,
-					page: 1, page_size: 999
+					page: this.popupLocPage, page_size: this.popupLocPageSize
 				})
 				console.log('【货位列表】load响应:', JSON.stringify(res))
-				// 兼容多种响应格式
-				let list = []
+				// 兼容多种响应格式：{ code:0, data:{ list:[], total:100 } } 或直接 { list:[], total:100 }
+				let newList = []
+				let totalCount = 0
 				if (res.code === 0 && res.data) {
-					list = res.data.list || res.data.records || []
+					newList = res.data.list || res.data.records || []
+					totalCount = res.data.total || 0
+				} else if (res.list || res.records) {
+					newList = res.list || res.records || []
+					totalCount = res.total || 0
 				}
-				if (list.length === 0) {
-					list = res.list || res.records || []
-				}
-				if (list.length > 0) {
-					this.popupLocationList = list
-					this.popupAllLocationList = list
-					this.popupLocHasMore = false
+				if (newList.length > 0) {
+					if (keepExisting) {
+						this.popupLocationList = [...this.popupLocationList, ...newList]
+						this.popupAllLocationList = [...this.popupAllLocationList, ...newList]
+					} else {
+						this.popupLocationList = newList
+						this.popupAllLocationList = newList
+					}
+					this.popupLocTotal = totalCount
+					this.popupLocHasMore = this.popupLocPage * this.popupLocPageSize < totalCount
 				} else {
-					console.warn('货位列表为空', JSON.stringify(res))
+					if (!keepExisting) {
+						this.popupLocationList = []
+						this.popupAllLocationList = []
+					}
+					this.popupLocHasMore = false
 				}
 			} catch (e) {
 				console.error('加载货位失败:', e)
@@ -1418,7 +1434,9 @@ export default {
 				this.popupLocationList = this.popupAllLocationList
 				this.popupLocHasMore = false
 			} finally {
-				this.popupLoadingLocation = false
+				if (!keepExisting) {
+					this.popupLoadingLocation = false
+				}
 			}
 		},
 
@@ -1481,25 +1499,8 @@ export default {
 			this.popupLocLoadingMore = true
 			this.popupLocPage++
 			const wh = this.popupWarehouseList[this.popupActiveWhIndex]
-			if (!wh) return
-			getLocationList({
-				warehouse_id: wh.id, type: 1, status: 1,
-				page: this.popupLocPage, page_size: this.popupLocPageSize
-			}).then(res => {
-				if (res.code === 0 && res.data && res.data.list) {
-					const newList = res.data.list
-					if (newList.length === 0) {
-						this.popupLocHasMore = false
-					} else {
-						this.popupLocationList = [...this.popupLocationList, ...newList]
-						this.popupAllLocationList = [...this.popupAllLocationList, ...newList]
-						const total = res.data.total || 0
-						this.popupLocHasMore = this.popupLocPage * this.popupLocPageSize < total
-					}
-				} else {
-					this.popupLocHasMore = false
-				}
-			}).catch(() => {
+			if (!wh) { this.popupLocLoadingMore = false; return }
+			this.loadPopupLocations(wh.id, true).catch(() => {
 				this.popupLocPage--
 			}).finally(() => {
 				this.popupLocLoadingMore = false
