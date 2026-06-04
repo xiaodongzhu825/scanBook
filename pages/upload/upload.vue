@@ -2426,7 +2426,7 @@ export default {
   background-color: #f4f4f5;
   border: 2rpx solid #e9e9eb;
   border-radius: 8rpx;
-  padding: 8rpx 14rpx;
+  padding: 8rpx 18rpx;
   flex-shrink: 0;
 }
 
