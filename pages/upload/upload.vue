@@ -1402,11 +1402,16 @@ export default {
 				console.error('加载仓库失败:', e)
 				const errMsg = e.message || String(e)
 				if (errMsg.includes('NEED_LOGIN')) {
-					const displayMsg = errMsg.replace('NEED_LOGIN:', '')
 					uni.showModal({
 						title: '系统提示',
-						content: displayMsg,
-						showCancel: false
+						content: 'PSI系统登录已过期，请重新登录',
+						confirmText: '去登录',
+						cancelText: '取消',
+						success: (modalRes) => {
+							if (modalRes.confirm) {
+								uni.navigateTo({ url: '/pages/login/login' })
+							}
+						}
 					})
 				}
 			} finally {
@@ -1464,11 +1469,16 @@ export default {
 				console.error('加载货位失败:', e)
 				const errMsg = e.message || String(e)
 				if (errMsg.includes('NEED_LOGIN')) {
-					const displayMsg = errMsg.replace('NEED_LOGIN:', '')
 					uni.showModal({
 						title: '系统提示',
-						content: displayMsg,
-						showCancel: false
+						content: 'PSI系统登录已过期，请重新登录',
+						confirmText: '去登录',
+						cancelText: '取消',
+						success: (modalRes) => {
+							if (modalRes.confirm) {
+								uni.navigateTo({ url: '/pages/login/login' })
+							}
+						}
 					})
 				}
 				this.popupLocationList = this.popupAllLocationList
