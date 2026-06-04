@@ -1447,7 +1447,7 @@ export default {
 				this.popupSelectedWh = wh
 				this.popupSelectedLoc = null
 				this.popupLocationSearch = ''
-				this.loadPopupLocations(wh.id)
+				return this.loadPopupLocations(wh.id)
 			}
 		},
 
@@ -1549,26 +1549,24 @@ export default {
 								return code === search || name === search || code.includes(search)
 							})
 							if (whIdx !== -1) {
-								// 切换到该仓库
-								this.selectPopupWarehouse(whIdx)
-								// 等待货位加载完成后再搜索匹配
-								setTimeout(() => {
-									const matchedLoc = this.popupAllLocationList.find(l => {
-										const code = (l.code || '').toLowerCase()
-										const name = (l.name || '').toLowerCase()
-										const search = locCode.toLowerCase()
-										return code === search || name === search ||
-											code.includes(search) || search.includes(code)
-									})
-									if (matchedLoc) {
-										this.popupSelectedLoc = matchedLoc
-										this.popupLocationSearch = ''
-										this.popupLocationList = [...this.popupAllLocationList]
-										uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + matchedLoc.code, icon: 'success' })
-									} else {
-										uni.showToast({ title: '已切换仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
-									}
-								}, 500)
+								// 切换到该仓库，并等待货位接口重新请求完成
+								await this.selectPopupWarehouse(whIdx)
+								// 货位列表已重新加载，在其中搜索匹配
+								const matchedLoc = this.popupAllLocationList.find(l => {
+									const code = (l.code || '').toLowerCase()
+									const name = (l.name || '').toLowerCase()
+									const search = locCode.toLowerCase()
+									return code === search || name === search ||
+										code.includes(search) || search.includes(code)
+								})
+								if (matchedLoc) {
+									this.popupSelectedLoc = matchedLoc
+									this.popupLocationSearch = ''
+									this.popupLocationList = [...this.popupAllLocationList]
+									uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + matchedLoc.code, icon: 'success' })
+								} else {
+									uni.showToast({ title: '已切换仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
+								}
 								return
 							}
 						}
