@@ -862,7 +862,7 @@ export default {
 			noIsbnProductList: [],
 			noIsbnHistoryList: [],
 			noIsbnLoading: false,
-			noIsbnDetailExpanded: false,
+			noIsbnDetailExpanded: true,
 			
 			// 筛选
 			showFilterPopup: false,
