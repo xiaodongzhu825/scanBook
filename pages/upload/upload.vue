@@ -2415,15 +2415,19 @@ export default {
 /* ========== 品相选择 ========== */
 .condition-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10rpx;
+  flex-wrap: nowrap;
+  gap: 8rpx;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
 }
 
 .condition-item {
   background-color: #f4f4f5;
   border: 2rpx solid #e9e9eb;
   border-radius: 8rpx;
-  padding: 12rpx 20rpx;
+  padding: 8rpx 14rpx;
+  flex-shrink: 0;
 }
 
 .condition-item.active {
@@ -2432,7 +2436,7 @@ export default {
 }
 
 .condition-text {
-  font-size: 26rpx;
+  font-size: 22rpx;
   color: #606266;
 }
 
