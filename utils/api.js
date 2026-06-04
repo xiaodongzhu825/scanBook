@@ -140,7 +140,9 @@ function generateSimpleSignedUrl(baseUrl, params = {}) {
  * 返回空字符串时后续API请求将收到401，由requestWithRetry统一处理
  */
 function getAuthToken() {
-	return uni.getStorageSync('token') || ''
+	const token = uni.getStorageSync('token')
+	console.log('【getAuthToken】读取token:', token ? (token.substring(0, 20) + '...') : '(空)')
+	return token || ''
 }
 
 /**
@@ -151,7 +153,7 @@ function requestWithRetry(requestFn, apiName) {
 		const errMsg = err.message || String(err)
 		console.error(`【${apiName}】请求失败:`, errMsg)
 		if (errMsg.includes('401') || errMsg.includes('无效的认证令牌')) {
-            throw new Error('NEED_LOGIN:PSI系统登录已过期，请在登录页重新登录')
+			throw new Error('NEED_LOGIN:PSI系统登录已过期，请在登录页重新登录')
 		}
 		throw err
 	})
