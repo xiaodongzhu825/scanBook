@@ -136,10 +136,11 @@ function generateSimpleSignedUrl(baseUrl, params = {}) {
 }
 
 /**
- * 获取PSI系统专用token（硬编码，PSI与业务系统token不互通）
+ * 获取PSI系统token（从本地存储读取，login.vue登录成功后保存）
+ * 返回空字符串时后续API请求将收到401，由requestWithRetry统一处理
  */
 function getAuthToken() {
-	return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6MjU1LCJ1c2VybmFtZSI6IjE4OTA0MDU2ODAwIiwiYWJvdXRfaWQiOjE5NjUyNTQ3NzQzMjc1MzM1NzAsImlzcyI6InBzaS1zeXN0ZW0iLCJleHAiOjE3ODA1NjY0NTYsIm5iZiI6MTc4MDQ4MDA1NiwiaWF0IjoxNzgwNDgwMDU2fQ.yWTRso0ps-z64iA7nSKK4t3EYOy54CYoLtATyzFxrqI'
+	return uni.getStorageSync('token') || ''
 }
 
 /**
@@ -149,8 +150,8 @@ function requestWithRetry(requestFn, apiName) {
 	return requestFn(getAuthToken()).catch((err) => {
 		const errMsg = err.message || String(err)
 		console.error(`【${apiName}】请求失败:`, errMsg)
-		if (errMsg.includes('401') || errMsg.includes('无效的认证令牌')) {
-			throw new Error('NEED_LOGIN:PSI系统登录已过期，请联系管理员')
+		if (errMsg.includes('401') || errMsg.includes('无效的认证令牌') || errMsg.includes('未登录')) {
+			throw new Error('NEED_LOGIN:PSI系统登录已过期，请在登录页重新登录')
 		}
 		throw err
 	})
