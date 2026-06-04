@@ -1526,28 +1526,68 @@ export default {
 			this.popupLocationList = [...this.popupAllLocationList]
 		},
 
-		// 扫码识别货位
-		scanLocationBarcode() {
+		// 扫码识别货位（格式：仓库编码##货位号，如 NS##a5-4）
+		async scanLocationBarcode() {
 			uni.scanCode({
 				onlyFromCamera: true,
 				scanType: ['barcode'],
-				success: (res) => {
-					const scanned = (res.result || '').trim().toLowerCase()
+				success: async (res) => {
+					const scanned = (res.result || '').trim()
 					if (!scanned) return
-					// 在当前仓库的货位列表中查找匹配的货位
+
+					// 尝试解析 编码##货位号 格式
+					const sepIdx = scanned.indexOf('##')
+					if (sepIdx > 0) {
+						const whCode = scanned.substring(0, sepIdx).trim()
+						const locCode = scanned.substring(sepIdx + 2).trim()
+						if (whCode && locCode) {
+							// 按仓库编码查找匹配的仓库
+							const whIdx = this.popupWarehouseList.findIndex(w => {
+								const code = (w.code || '').toLowerCase()
+								const name = (w.name || '').toLowerCase()
+								const search = whCode.toLowerCase()
+								return code === search || name === search || code.includes(search)
+							})
+							if (whIdx !== -1) {
+								// 切换到该仓库
+								this.selectPopupWarehouse(whIdx)
+								// 等待货位加载完成后再搜索匹配
+								setTimeout(() => {
+									const matchedLoc = this.popupAllLocationList.find(l => {
+										const code = (l.code || '').toLowerCase()
+										const name = (l.name || '').toLowerCase()
+										const search = locCode.toLowerCase()
+										return code === search || name === search ||
+											code.includes(search) || search.includes(code)
+									})
+									if (matchedLoc) {
+										this.popupSelectedLoc = matchedLoc
+										this.popupLocationSearch = ''
+										this.popupLocationList = [...this.popupAllLocationList]
+										uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + matchedLoc.code, icon: 'success' })
+									} else {
+										uni.showToast({ title: '已切换仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
+									}
+								}, 500)
+								return
+							}
+						}
+					}
+
+					// 无仓库编码格式，在当前仓库的货位列表中查找匹配的货位
 					let matched = null
 					for (const loc of this.popupAllLocationList) {
 						const code = (loc.code || '').toLowerCase()
 						const name = (loc.name || '').toLowerCase()
-						if (code === scanned || name === scanned ||
-							code.includes(scanned) || scanned.includes(code)) {
+						const search = scanned.toLowerCase()
+						if (code === search || name === search ||
+							code.includes(search) || search.includes(code)) {
 							matched = loc
 							break
 						}
 					}
 					if (matched) {
 						this.popupSelectedLoc = matched
-						// 滚动到该货位（通过设置搜索关键字并高亮）
 						this.popupLocationSearch = ''
 						this.popupLocationList = [...this.popupAllLocationList]
 						uni.showToast({ title: '已选中货位: ' + matched.code, icon: 'success' })
