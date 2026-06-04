@@ -15,8 +15,10 @@
 				scanned: false
 			}
 		},
-		onReady() {
-			this.initBarcode()
+		mounted() {
+			this.$nextTick(() => {
+				this.initBarcode()
+			})
 		},
 		onUnload() {
 			this.destroyBarcode()
@@ -27,7 +29,6 @@
 					uni.showToast({ title: '扫码初始化失败', icon: 'none' })
 					return
 				}
-				// 创建原生条码扫描控件，全透明无取景框
 				var options = {
 					top: '0px',
 					left: '0px',
@@ -80,6 +81,7 @@
 		flex: 1;
 		background-color: #000;
 		position: relative;
+		overflow: hidden;
 	}
 	.barcode-container {
 		position: absolute;
