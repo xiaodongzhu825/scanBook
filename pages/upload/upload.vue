@@ -935,6 +935,8 @@ export default {
 		this.loadPriceConfig()
 		// 预加载图书分类
 		this.loadNoIsbnCategory()
+		// 初始化印刷时间选择器默认值
+		this.syncNoIsbnPrintTimeIndexes()
 		// 恢复选择的仓库货位
 		const savedWhData = uni.getStorageSync('selectedWarehouseData')
 		if (savedWhData) {
@@ -1110,6 +1112,9 @@ export default {
 			if (this.productList.length > 0 && this.isbn && this.isLoggedIn) {
 				this.searchISBN()
 			}
+		},
+		noIsbnPrintTime() {
+			this.syncNoIsbnPrintTimeIndexes()
 		}
 	},
 
@@ -1655,6 +1660,22 @@ export default {
 			const month = this.noIsbnMonthOptions[values[1]]
 			if (year && month) {
 				this.noIsbnPrintTime = year + '/' + month
+			}
+		},
+
+		// 同步印刷时间选择器索引（空→今年，有值→对应年/月）
+		syncNoIsbnPrintTimeIndexes() {
+			if (this.noIsbnPrintTime) {
+				const parts = this.noIsbnPrintTime.split('/')
+				const yearIdx = this.noIsbnYearOptions.indexOf(parts[0])
+				const monthIdx = parts[1] ? this.noIsbnMonthOptions.indexOf(parts[1].padStart(2, '0')) : -1
+				if (yearIdx >= 0) this.noIsbnPrintTimeIndexes[0] = yearIdx
+				if (monthIdx >= 0) this.noIsbnPrintTimeIndexes[1] = monthIdx
+			} else {
+				const curYear = String(new Date().getFullYear())
+				const curYearIdx = this.noIsbnYearOptions.indexOf(curYear)
+				if (curYearIdx >= 0) this.noIsbnPrintTimeIndexes[0] = curYearIdx
+				this.noIsbnPrintTimeIndexes[1] = 0
 			}
 		},
 
