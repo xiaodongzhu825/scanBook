@@ -676,13 +676,6 @@
 			</swiper-item>
 		</swiper>
 
-		<!-- 全屏扫码摄像头（无取景框，实时识别） -->
-		<view class="scan-camera-overlay" v-if="showScanCamera">
-			<camera class="scan-camera" mode="scanCode" device-position="back" flash="auto" @scancode="handleScancode" @error="closeScanCamera"></camera>
-			<cover-view class="scan-camera-close" @click="closeScanCamera">✕</cover-view>
-			<cover-view class="scan-camera-tip">对准条码自动识别</cover-view>
-		</view>
-
 		<!-- 底部提交栏 -->
 		<view class="bottom-bar">
 			<view class="submit-btn" @click="submitUpload">
@@ -826,7 +819,6 @@ export default {
 			historyList: [],
 			isSubmitting: false,
 			isLoading: false,
-			showScanCamera: false,
 			
 			// 无ISBN表单
 			noIsbnPrintTime: '',
@@ -1155,23 +1147,16 @@ export default {
 				uni.showToast({ title: '请先登录孔网账号', icon: 'none' })
 				return
 			}
-			// 打开全屏摄像头实时扫码（无取景框）
-			this.showScanCamera = true
-		},
-
-		// 摄像头实时扫码回调
-		handleScancode(e) {
-			const code = (e.detail && e.detail.result) || ''
-			if (code && code.length === 13) {
-				this.showScanCamera = false
-				this.isbn = code.trim()
-				this.searchISBN()
-			}
-		},
-
-		// 关闭扫码摄像头
-		closeScanCamera() {
-			this.showScanCamera = false
+			// 打开安卓原生扫码界面（无自定义取景框，对准即识别）
+			uni.scanCode({
+				onlyFromCamera: true,
+				scanType: ['barcode'],
+				success: (res) => {
+					this.isbn = (res.result || '').trim()
+					this.searchISBN()
+				},
+				fail: () => {}
+			})
 		},
 
 		// ISBN搜索 - 查询图书中心 + 孔网市场
@@ -2868,51 +2853,6 @@ picker {
 
 .bottom-placeholder {
   height: 40rpx;
-}
-
-/* ========== 全屏扫码摄像头 ========== */
-.scan-camera-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 9999;
-  background-color: #000;
-}
-
-.scan-camera {
-  width: 100%;
-  height: 100%;
-}
-
-.scan-camera-close {
-  position: fixed;
-  top: 60rpx;
-  left: 30rpx;
-  width: 60rpx;
-  height: 60rpx;
-  border-radius: 50%;
-  background-color: rgba(0,0,0,0.4);
-  color: #fff;
-  font-size: 36rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-}
-
-.scan-camera-tip {
-  position: fixed;
-  bottom: 120rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #fff;
-  font-size: 28rpx;
-  background-color: rgba(0,0,0,0.5);
-  padding: 12rpx 30rpx;
-  border-radius: 40rpx;
-  z-index: 10000;
 }
 
 /* ========== 底部提交栏 ========== */
