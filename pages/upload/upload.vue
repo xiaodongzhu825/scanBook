@@ -1079,6 +1079,15 @@ export default {
 		}
 	},
 
+	watch: {
+		noIsbnSelectedCondition() {
+			// 品相变化时重新搜索在售商品
+			if (this.noIsbnProductList.length > 0 && this.noIsbnBookName && this.isLoggedIn) {
+				this.searchNoIsbn()
+			}
+		}
+	},
+
 	methods: {
 		// 标签切换
 		switchTab(tab) {
