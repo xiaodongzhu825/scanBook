@@ -2322,7 +2322,7 @@ export default {
 
 .inline-field.narrow {
   flex: none;
-  width: 200rpx;
+  width: 300rpx;
 }
 
 .inline-field.isbn-field {
