@@ -220,105 +220,8 @@
 			<swiper-item>
 				<view class="tab-content">
 					<scroll-view class="content-scroll" scroll-y="true">
-						<!-- 货区选择 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">货区选择</text>
-							</view>
-							<view class="picker-box" @click="openWarehousePicker('no-isbn')">
-								<text class="picker-value">{{ noIsbnSelectedArea || '请选择货区' }}</text>
-								<text class="picker-arrow">›</text>
-							</view>
-						</view>
 
-						<!-- 印刷时间 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">印刷时间</text>
-							</view>
-							<input class="form-input" v-model="noIsbnPrintTime" placeholder="请输入印刷时间" />
-						</view>
-
-						<!-- 书名（带查询按钮） -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">书名</text>
-							</view>
-							<view class="inline-fields" style="flex:1;">
-								<view class="inline-field" style="flex:1;">
-									<input class="form-input" v-model="noIsbnBookName" placeholder="请输入书名" style="flex:1;" />
-								</view>
-								<view class="inline-field" style="flex:none;">
-									<view class="search-btn" @click="searchNoIsbn">
-										<text class="search-text">搜</text>
-									</view>
-								</view>
-							</view>
-						</view>
-
-						<!-- 作者 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">作者</text>
-							</view>
-							<input class="form-input" v-model="noIsbnAuthor" placeholder="请输入作者" />
-						</view>
-
-						<!-- 出版社 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">出版社</text>
-							</view>
-							<input class="form-input" v-model="noIsbnPublisher" placeholder="请输入出版社" />
-						</view>
-
-						<!-- 图书分类 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">图书分类</text>
-							</view>
-							<view class="category-select" @click="showCategoryPopup = true">
-								<text class="category-value">{{ noIsbnSelectedCategory || '请选择分类' }}</text>
-								<text class="picker-arrow">›</text>
-							</view>
-						</view>
-
-						<!-- 开本 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">开本</text>
-							</view>
-							<input class="form-input" v-model="noIsbnFormat" placeholder="请输入开本" />
-						</view>
-
-						<!-- 定价 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">定价</text>
-							</view>
-							<view class="price-input-box">
-								<text class="price-symbol">¥</text>
-								<input class="price-input" v-model="noIsbnOriginalPrice" placeholder="请输入定价" type="digit" />
-							</view>
-						</view>
-
-						<!-- 字数 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">字数</text>
-							</view>
-							<input class="form-input" v-model="noIsbnWordCount" placeholder="请输入字数" type="number" />
-						</view>
-
-						<!-- ISBN -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">ISBN</text>
-							</view>
-							<input class="form-input" v-model="noIsbnIsbn" placeholder="请输入ISBN" type="number" />
-						</view>
-
-						<!-- 品相 -->
+						<!-- ===== 品相（最上方） ===== -->
 						<view class="form-section">
 							<view class="field-label">
 								<text class="label-text">品相</text>
@@ -336,26 +239,120 @@
 							</view>
 						</view>
 
-						<!-- 价格 -->
+						<!-- ===== 基本信息 ===== -->
+						<view class="form-section">
+							<view class="field-label">
+								<text class="label-text">货区</text>
+							</view>
+							<view class="picker-box" @click="openWarehousePicker('no-isbn')">
+								<text class="picker-value">{{ noIsbnSelectedArea || '请选择货区' }}</text>
+								<text class="picker-arrow">›</text>
+							</view>
+						</view>
+
+						<view class="form-section">
+							<view class="field-label">
+								<text class="label-text">书名</text>
+							</view>
+							<view class="inline-fields" style="flex:1;">
+								<view class="inline-field" style="flex:1;">
+									<input class="form-input" v-model="noIsbnBookName" placeholder="请输入书名" style="flex:1;" />
+								</view>
+								<view class="inline-field" style="flex:none;">
+									<view class="search-btn" @click="searchNoIsbn">
+										<text class="search-text">搜</text>
+									</view>
+								</view>
+							</view>
+						</view>
+
 						<view class="form-section">
 							<view class="field-label">
 								<text class="label-text">价格</text>
 							</view>
-							<view class="price-input-box">
-								<text class="price-symbol">¥</text>
-								<input class="price-input" v-model="noIsbnPrice" placeholder="请输入价格" type="digit" />
+							<view class="inline-fields" style="flex:1;">
+								<view class="inline-field" style="flex:1;">
+									<view class="price-input-box" style="flex:1;">
+										<text class="price-symbol">¥</text>
+										<input class="price-input" v-model="noIsbnPrice" placeholder="售价" type="digit" />
+									</view>
+								</view>
+								<view class="inline-field" style="flex:1;">
+									<input class="form-input" v-model="noIsbnStock" type="number" placeholder="库存" style="flex:1;" />
+								</view>
 							</view>
 						</view>
 
-						<!-- 库存 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">库存</text>
+						<!-- ===== 图书详情 ===== -->
+						<view class="detail-section-header" @click="noIsbnDetailExpanded = !noIsbnDetailExpanded">
+							<text class="detail-section-title">图书详情</text>
+							<text class="detail-arrow">{{ noIsbnDetailExpanded ? '▼' : '▶' }}</text>
+						</view>
+						<view v-show="noIsbnDetailExpanded">
+							<view class="form-section">
+								<view class="field-label">
+									<text class="label-text">作者</text>
+								</view>
+								<input class="form-input" v-model="noIsbnAuthor" placeholder="请输入作者" />
 							</view>
-							<input class="form-input" v-model="noIsbnStock" placeholder="请输入库存数量" type="number" />
+
+							<view class="form-section">
+								<view class="field-label">
+									<text class="label-text">出版社</text>
+								</view>
+								<input class="form-input" v-model="noIsbnPublisher" placeholder="请输入出版社" />
+							</view>
+
+							<view class="form-section">
+								<view class="field-label">
+									<text class="label-text">印刷时间</text>
+								</view>
+								<input class="form-input" v-model="noIsbnPrintTime" placeholder="请输入印刷时间" />
+							</view>
+
+							<view class="form-section">
+								<view class="field-label">
+									<text class="label-text">定价</text>
+								</view>
+								<view class="price-input-box">
+									<text class="price-symbol">¥</text>
+									<input class="price-input" v-model="noIsbnOriginalPrice" placeholder="请输入定价" type="digit" />
+								</view>
+							</view>
+
+							<view class="form-section">
+								<view class="field-label">
+									<text class="label-text">ISBN</text>
+								</view>
+								<input class="form-input" v-model="noIsbnIsbn" placeholder="请输入ISBN" type="number" />
+							</view>
+
+							<view class="form-section">
+								<view class="field-label">
+									<text class="label-text">图书分类</text>
+								</view>
+								<view class="category-select" @click="showCategoryPopup = true">
+									<text class="category-value">{{ noIsbnSelectedCategory || '请选择分类' }}</text>
+									<text class="picker-arrow">›</text>
+								</view>
+							</view>
+
+							<view class="form-section">
+								<view class="field-label">
+									<text class="label-text">开本</text>
+								</view>
+								<input class="form-input" v-model="noIsbnFormat" placeholder="请输入开本" />
+							</view>
+
+							<view class="form-section">
+								<view class="field-label">
+									<text class="label-text">字数</text>
+								</view>
+								<input class="form-input" v-model="noIsbnWordCount" placeholder="请输入字数" type="number" />
+							</view>
 						</view>
 
-						<!-- 拍照 -->
+						<!-- ===== 拍照 ===== -->
 						<view class="form-section">
 							<view class="section-title">
 								<text class="title-text">拍照</text>
@@ -380,7 +377,7 @@
 							</view>
 						</view>
 
-						<!-- 市场竞争 -->
+						<!-- ===== 市场竞争 ===== -->
 						<view class="form-section" v-if="noIsbnProductList.length > 0">
 							<view class="section-title">
 								<text class="title-text">市场竞争</text>
@@ -405,7 +402,7 @@
 							</view>
 						</view>
 
-						<!-- 在售商品 -->
+						<!-- ===== 在售商品 ===== -->
 						<view class="form-section" v-if="noIsbnProductList.length > 0">
 							<view class="section-title">
 								<text class="title-text">在售商品</text>
@@ -430,7 +427,7 @@
 							</view>
 						</view>
 
-						<!-- 上书记录 -->
+						<!-- ===== 上书记录 ===== -->
 						<view class="form-section" v-if="noIsbnHistoryList.length > 0">
 							<view class="section-title">
 								<text class="title-text">上书记录</text>
@@ -449,7 +446,7 @@
 							</view>
 						</view>
 
-						<!-- 确认上传 -->
+						<!-- ===== 确认上传 ===== -->
 						<view class="submit-area">
 							<view class="submit-btn" @click="submitNoIsbnUpload" :class="{ disabled: noIsbnSubmitting }">
 								<text class="submit-btn-text">确认上传</text>
@@ -850,6 +847,7 @@ export default {
 			noIsbnHistoryList: [],
 			noIsbnLoading: false,
 			noIsbnSubmitting: false,
+			noIsbnDetailExpanded: false,
 			
 			// 分类
 			showCategoryPopup: false,
@@ -2441,6 +2439,29 @@ export default {
 
 .submit-btn.disabled {
   opacity: 0.6;
+}
+
+/* ========== 折叠详情 ========== */
+.detail-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 20rpx;
+  margin: 20rpx 0;
+  background-color: #f5f7fa;
+  border-radius: 8rpx;
+}
+
+.detail-section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #303133;
+}
+
+.detail-arrow {
+  font-size: 24rpx;
+  color: #909399;
+  transition: transform 0.2s;
 }
 
 .submit-text {
