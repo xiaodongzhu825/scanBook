@@ -68,6 +68,60 @@ function sha256Hex(str) {
   return sha256(str)
 }
 
+// ====== 时间同步 ======
+
+/** 缓存服务器时间偏移量（毫秒） */
+var _timeOffset = 0
+var _timeSyncing = false
+
+/**
+ * 从 MinIO 服务器同步时间
+ * 通过 GET 根路径获取 Date 响应头，计算客户端与服务端的时间差
+ */
+function syncServerTime() {
+  return new Promise(function (resolve) {
+    if (_timeSyncing) {
+      // 已有同步请求在进行中，重试 500ms 后获取
+      setTimeout(function () { resolve(getServerDate()) }, 500)
+      return
+    }
+    _timeSyncing = true
+    var url = CFG.protocol + '://' + CFG.endpoint + '/'
+    var XHRClass = getXHR()
+    if (XHRClass) {
+      var xhr = new XHRClass()
+      xhr.open('GET', url, true)
+      xhr.onload = function () {
+        var serverDateStr = xhr.getResponseHeader('Date')
+        if (serverDateStr) {
+          var serverMs = new Date(serverDateStr).getTime()
+          if (serverMs) {
+            _timeOffset = serverMs - Date.now()
+            console.log('【MinIO】时间同步完成，服务器偏移:', _timeOffset, 'ms')
+          }
+        }
+        _timeSyncing = false
+        resolve(getServerDate())
+      }
+      xhr.onerror = function () {
+        _timeSyncing = false
+        resolve(new Date())
+      }
+      xhr.send()
+    } else {
+      _timeSyncing = false
+      resolve(new Date())
+    }
+  })
+}
+
+/**
+ * 获取对齐服务器时间后的当前时间
+ */
+function getServerDate() {
+  return new Date(Date.now() + _timeOffset)
+}
+
 // ====== AWS V4 签名 ======
 
 /**
@@ -352,37 +406,39 @@ function getContentType(ext) {
  */
 export function uploadImage(filePath, typeDir = 'Isbn') {
   return new Promise(function (resolve, reject) {
-    readFileAsBase64(filePath)
-      .then(function (base64) {
-        const arrayBuffer = base64ToArrayBuffer(base64)
+    syncServerTime().then(function (serverDate) {
+      readFileAsBase64(filePath)
+        .then(function (base64) {
+          const arrayBuffer = base64ToArrayBuffer(base64)
 
-        // 构建对象路径：年-月-日/Isbn/uuid.ext
-        const now = new Date()
-        const datePath = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
-        const ext = getFileExt(filePath)
-        const objectKey = datePath + '/' + typeDir + '/' + generateUUID() + '.' + ext
-        const contentType = getContentType(ext)
+          // 构建对象路径（使用服务器时间）
+          const now = serverDate
+          const datePath = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+          const ext = getFileExt(filePath)
+          const objectKey = datePath + '/' + typeDir + '/' + generateUUID() + '.' + ext
+          const contentType = getContentType(ext)
 
-        // 构建 AWS V4 签名
-        const { authHeader, amzDate, host } = buildAuthHeader(objectKey, now)
+          // 构建 AWS V4 签名
+          const { authHeader, amzDate, host } = buildAuthHeader(objectKey, now)
 
-        // PUT URL
-        const url = CFG.protocol + '://' + host + '/' + CFG.bucket + '/' + objectKey
+          // PUT URL
+          const url = CFG.protocol + '://' + host + '/' + CFG.bucket + '/' + objectKey
 
-        console.log('【MinIO上传】URL:', url)
-        console.log('【MinIO上传】contentType:', contentType)
-        console.log('【MinIO上传】contentLength:', arrayBuffer.byteLength)
+          console.log('【MinIO上传】URL:', url)
+          console.log('【MinIO上传】contentType:', contentType)
+          console.log('【MinIO上传】contentLength:', arrayBuffer.byteLength)
 
-        // PUT 到 MinIO
-        minioPut(url, arrayBuffer, contentType, authHeader, amzDate).then(function (resultUrl) {
-          resolve(resultUrl)
-        }).catch(function (err) {
+          // PUT 到 MinIO
+          minioPut(url, arrayBuffer, contentType, authHeader, amzDate).then(function (resultUrl) {
+            resolve(resultUrl)
+          }).catch(function (err) {
+            reject(err)
+          })
+        })
+        .catch(function (err) {
           reject(err)
         })
-      })
-      .catch(function (err) {
-        reject(err)
-      })
+    })
   })
 }
 
