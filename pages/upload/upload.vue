@@ -2034,14 +2034,17 @@ export default {
 				if (goodsUserId && goodsWarehouseId && goodsProductId) {
 					console.log('【上传】调用releaseGoodsAuto:', goodsUserId, goodsWarehouseId, goodsProductId)
 					var releaseUrl = 'http://192.168.101.127:8080/zhishu/product/releaseGoodsAuto'
+					var releaseParams = {
+						userId: String(goodsUserId),
+						warehouseId: String(goodsWarehouseId),
+						productId: String(goodsProductId)
+					}
+					console.log('【上传】releaseGoodsAuto请求地址:', releaseUrl)
+					console.log('【上传】releaseGoodsAuto请求参数:', releaseParams)
 					uni.request({
 						url: releaseUrl,
 						method: 'POST',
-						data: {
-							userId: String(goodsUserId),
-							warehouseId: String(goodsWarehouseId),
-							productId: String(goodsProductId)
-						},
+						data: releaseParams,
 						success: function (r2) {
 							console.log('【上传】releaseGoodsAuto响应:', r2.statusCode, r2.data)
 						},
