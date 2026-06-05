@@ -68,26 +68,54 @@ function syncServerTime() {
       return
     }
     _timeSyncing = true
-    uni.request({
-      url: CFG.protocol + '://' + CFG.endpoint + '/',
-      method: 'PUT',
-      success: function (res) {
-        var d = res.header ? (res.header.Date || res.header.date) : null
-        d = d || (res.headers ? (res.headers.Date || res.headers.date) : null)
-        if (d) {
-          var ms = new Date(d).getTime()
-          if (ms) {
-            _timeOffset = ms - Date.now()
+    console.log('【MinIO时间同步】开始...')
+
+    var resolved = false
+    function finish(serverDate) {
+      if (resolved) return
+      resolved = true
+      _timeSyncing = false
+      if (serverDate) {
+        _timeOffset = serverDate.getTime() - Date.now()
+        console.log('【MinIO时间同步】完成, 服务器时间:', serverDate.toISOString(), '偏移:', _timeOffset, 'ms')
+      } else {
+        console.warn('【MinIO时间同步】失败, 使用本地时间')
+      }
+      resolve(new Date(Date.now() + _timeOffset))
+    }
+
+    // 方法1: plus.net.XMLHttpRequest GET（App 环境，最可靠）
+    if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
+      try {
+        var xhr1 = new plus.net.XMLHttpRequest()
+        xhr1.onreadystatechange = function () {
+          if (xhr1.readyState === 4) {
+            var d = xhr1.getResponseHeader('Date')
+            if (d) { finish(new Date(d)); return }
           }
         }
-        _timeSyncing = false
-        resolve(new Date(Date.now() + _timeOffset))
+        xhr1.open('GET', CFG.protocol + '://' + CFG.endpoint + '/')
+        xhr1.send()
+      } catch (e) { console.warn('【MinIO时间同步】xhr方式失败:', e) }
+    }
+
+    // 方法2: uni.request
+    uni.request({
+      url: CFG.protocol + '://' + CFG.endpoint + '/',
+      method: 'GET',
+      success: function (res) {
+        var d = null
+        if (res.header) d = res.header.Date || res.header.date
+        if (!d && res.headers) d = res.headers.Date || res.headers.date
+        if (d) { finish(new Date(d)); return }
       },
-      fail: function () {
-        _timeSyncing = false
-        resolve(new Date())
+      fail: function (e) {
+        console.warn('【MinIO时间同步】uni.request失败:', JSON.stringify(e))
       }
     })
+
+    // 兜底：8秒后没拿到就用本地时间
+    setTimeout(function () { finish(null) }, 8000)
   })
 }
 
