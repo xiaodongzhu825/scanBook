@@ -2031,7 +2031,7 @@ export default {
 				}
 
 				// 调用 API 推送到店铺
-				const apiUrl = 'http://192.168.101.213:9090/api/product/pushToShop'
+				const apiUrl = 'http://192.168.101.213:9092/api/product/pushToShop'
 				console.log('【上传】推送API:', apiUrl, apiData)
 
 				// 使用 uni.request 以 form-urlencoded 方式发送
