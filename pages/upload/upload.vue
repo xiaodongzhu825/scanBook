@@ -1940,6 +1940,8 @@ export default {
 
 				// 构建弹窗内容（含MinIO图片地址）
 				const urlTexts = imageUrls.map(function (u, i) { return '  [' + (i + 1) + '] ' + u }).join('\n')
+				// 品相只显示数字（去掉 ~ 后缀）
+				const conditionDisplay = (this.currentTab === 'isbn' ? this.conditionValue : this.noIsbnConditionValue).replace('~', '')
 				let contentLines
 				if (this.currentTab === 'isbn') {
 					contentLines = [
@@ -1949,6 +1951,7 @@ export default {
 						'📕 书名：' + (this.bookName || '-'),
 						'💰 价格：' + (this.price || '-'),
 						'📊 库存：' + (this.stock ?? '-'),
+						'🏅 品相：' + conditionDisplay,
 						'✍️ 作者：' + (this.author || '-'),
 						'🏢 出版社：' + (this.publisher || '-'),
 						'🏷️ 定价：' + (this.fixPrice || '-'),
@@ -1961,6 +1964,7 @@ export default {
 						'🆔 用户ID：' + psiUserId,
 						'📦 货区：' + locationText,
 						'📕 书名：' + (this.noIsbnBookName || '-'),
+						'🏅 品相：' + conditionDisplay,
 						'✍️ 作者：' + (this.noIsbnAuthor || '-'),
 						'🏢 出版社：' + (this.noIsbnPublisher || '-'),
 						'🏷️ 定价：' + (this.noIsbnOriginalPrice || '-'),
