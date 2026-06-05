@@ -2724,8 +2724,8 @@ picker {
 .condition-item {
   background-color: #f4f4f5;
   border: 2rpx solid #e9e9eb;
-  border-radius: 8rpx;
-  padding: 8rpx 18rpx;
+  border-radius: 6rpx;
+  padding: 4rpx 12rpx;
   flex-shrink: 0;
 }
 
@@ -2735,7 +2735,7 @@ picker {
 }
 
 .condition-text {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #606266;
 }
 
