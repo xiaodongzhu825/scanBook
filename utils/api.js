@@ -141,6 +141,7 @@ function generateSimpleSignedUrl(baseUrl, params = {}) {
  */
 function getAuthToken() {
 	const token = uni.getStorageSync('token')
+	console.log('【getAuthToken】读取到token:', token ? (token.substring(0, 30) + '...长度=' + token.length) : '(空)')
 	return token || ''
 }
 
