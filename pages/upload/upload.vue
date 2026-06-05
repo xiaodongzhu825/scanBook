@@ -1890,11 +1890,6 @@ export default {
 				return
 			}
 
-			const whId = warehouseData.warehouseId || '-'
-			const locId = warehouseData.locationId || '-'
-			const locationText = '仓库ID:' + whId + ' 货位ID:' + locId
-			const psiUserId = uni.getStorageSync('userId') || '-'
-
 			// 检查是否有图片
 			if (this.currentTab === 'isbn' && this.photoList.length < 1) {
 				uni.showToast({ title: '请至少拍一张图片', icon: 'none' })
@@ -1933,65 +1928,16 @@ export default {
 				const photoList = this.currentTab === 'isbn' ? this.photoList : this.noIsbnPhotoList
 				const typeDir = this.currentTab === 'isbn' ? (this.isbn || 'UnknownIsbn') : this.noIsbnIsbn || this.noIsbnUnifyIsbn || 'NoIsbn'
 				const imageUrls = await uploadImages(photoList, typeDir)
-				uni.hideLoading()
-				this.isSubmitting = false
 
 				console.log('【上传】MinIO图片URL列表:', imageUrls)
 
-				// 构建弹窗内容（含MinIO图片地址）
-				const urlTexts = imageUrls.map(function (u, i) { return '  [' + (i + 1) + '] ' + u }).join('\n')
-				// 品相只显示数字（去掉 ~ 后缀）
-				const conditionDisplay = (this.currentTab === 'isbn' ? this.conditionValue : this.noIsbnConditionValue).replace('~', '')
-				let contentLines
-				if (this.currentTab === 'isbn') {
-					contentLines = [
-						'🆔 用户ID：' + psiUserId,
-						'📦 货区：' + locationText,
-						'📖 ISBN：' + (this.isbn || '-'),
-						'📕 书名：' + (this.bookName || '-'),
-						'💰 价格：' + (this.price || '-'),
-						'📊 库存：' + (this.stock ?? '-'),
-						'🏅 品相：' + conditionDisplay,
-						'✍️ 作者：' + (this.author || '-'),
-						'🏢 出版社：' + (this.publisher || '-'),
-						'🏷️ 定价：' + (this.fixPrice || '-'),
-						'📅 印刷时间：' + (this.printTime || '-'),
-						'📷 图片 (' + imageUrls.length + '张)：',
-						urlTexts
-					]
-				} else {
-					contentLines = [
-						'🆔 用户ID：' + psiUserId,
-						'📦 货区：' + locationText,
-						'📕 书名：' + (this.noIsbnBookName || '-'),
-						'🏅 品相：' + conditionDisplay,
-						'✍️ 作者：' + (this.noIsbnAuthor || '-'),
-						'🏢 出版社：' + (this.noIsbnPublisher || '-'),
-						'🏷️ 定价：' + (this.noIsbnOriginalPrice || '-'),
-						'📖 ISBN：' + (this.noIsbnIsbn || this.noIsbnUnifyIsbn || '-'),
-						'📅 印刷时间：' + (this.noIsbnPrintTime || '-'),
-						'💰 价格：' + (this.noIsbnPrice || '-'),
-						'📊 库存：' + (this.noIsbnStock ?? '-'),
-						'📷 图片 (' + imageUrls.length + '张)：',
-						urlTexts
-					]
-				}
-
-				// 弹窗显示（含MinIO地址）
-				uni.showModal({
-					title: '确认上传',
-					content: contentLines.join('\n'),
-					showCancel: false,
-					confirmText: '确定',
-					success: () => {
-						this.doSubmit(warehouseData, imageUrls)
-					}
-				})
+				// 图片上传完成后直接推送数据到接口
+				await this.doSubmit(warehouseData, imageUrls)
 			} catch (e) {
 				uni.hideLoading()
 				this.isSubmitting = false
-				console.error('【上传】图片上传失败:', e)
-				uni.showToast({ title: '图片上传失败: ' + (e.message || '未知错误'), icon: 'none', duration: 3000 })
+				console.error('【上传】失败:', e)
+				uni.showToast({ title: e.message || '上传失败', icon: 'none', duration: 3000 })
 			}
 		},
 
