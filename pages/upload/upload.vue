@@ -2007,7 +2007,7 @@ export default {
 				// 构建 form-data 参数
 				const userId = uni.getStorageSync('userId') || ''
 				const apiData = {
-					userid: userId,
+					user_id: userId,
 					warehouse_id: String(warehouseData.warehouseId || ''),
 					location_id: String(warehouseData.locationId || ''),
 					isbn: '',
@@ -2045,7 +2045,7 @@ export default {
 							'Authorization': 'Bearer ' + token
 						},
 						data: {
-							userid: apiData.userid,
+							user_id: apiData.user_id,
 							warehouse_id: apiData.warehouse_id,
 							location_id: apiData.location_id,
 							isbn: apiData.isbn,
