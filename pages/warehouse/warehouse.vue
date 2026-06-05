@@ -98,8 +98,18 @@
 			<view class="wh-dialog-box" @click.stop>
 				<text class="wh-dialog-title">扫码识别结果</text>
 				<view class="wh-dialog-body">
-					<text class="wh-dialog-label">原始内容：</text>
-					<text class="wh-dialog-value">{{ scanResult }}</text>
+					<view class="wh-dialog-row" v-if="scanWhCode">
+						<text class="wh-dialog-label">仓库编码</text>
+						<text class="wh-dialog-value">{{ scanWhCode }}</text>
+					</view>
+					<view class="wh-dialog-row" v-if="scanLocCode">
+						<text class="wh-dialog-label">货位号</text>
+						<text class="wh-dialog-value">{{ scanLocCode }}</text>
+					</view>
+					<view class="wh-dialog-row" v-if="!scanWhCode && !scanLocCode">
+						<text class="wh-dialog-label">原始内容</text>
+						<text class="wh-dialog-value">{{ scanResult }}</text>
+					</view>
 				</view>
 				<view class="wh-dialog-footer">
 					<text class="wh-dialog-btn cancel" @click="showScanDialog = false">关闭</text>
@@ -128,6 +138,8 @@ export default {
 			isRefreshing: false,
 			searchKeyword: '',
 			scanResult: '',
+			scanWhCode: '',
+			scanLocCode: '',
 			showScanDialog: false
 		}
 	},
@@ -284,12 +296,22 @@ export default {
 			}
 		},
 
-		// 扫码识别货位号
+		// 扫码识别货位（格式：仓库编码##货位号，如 NS##a5-4）
 		handleScan() {
 			uni.scanCode({
 				onlyFromCamera: false,
 				success: (res) => {
-					this.scanResult = (res.result || '').trim()
+					const scanned = (res.result || '').trim()
+					this.scanResult = scanned
+					// 尝试解析 编码##货位号 格式
+					const sepIdx = scanned.indexOf('##')
+					if (sepIdx > 0) {
+						this.scanWhCode = scanned.substring(0, sepIdx).trim()
+						this.scanLocCode = scanned.substring(sepIdx + 2).trim()
+					} else {
+						this.scanWhCode = ''
+						this.scanLocCode = ''
+					}
 					this.showScanDialog = true
 				},
 				fail: () => {
@@ -298,13 +320,37 @@ export default {
 			})
 		},
 
-		// 扫码确认搜索（提取##后的内容）
-		onScanConfirm() {
+		// 扫码确认搜索（识别到仓库编码则自动切换tab，并带着货位号请求后端过滤）
+		async onScanConfirm() {
 			this.showScanDialog = false
-			if (this.scanResult) {
-				const parts = this.scanResult.split('##')
-				const code = parts.length > 1 ? parts[parts.length - 1] : this.scanResult
-				this.searchKeyword = code
+			if (!this.scanResult) return
+
+			const whCode = this.scanWhCode
+			const locCode = this.scanLocCode
+
+			if (whCode && locCode) {
+				// 格式 NS##a5-4 → 按仓库编码匹配，切换tab，带着货位号请求后端过滤
+				const matchedWh = this.warehouseList.find(w => {
+					const code = (w.code || '').toLowerCase()
+					const name = (w.name || '').toLowerCase()
+					return code === whCode.toLowerCase() || name === whCode.toLowerCase()
+				})
+				if (matchedWh) {
+					this.selectedWarehouse = matchedWh
+					this.searchKeyword = ''
+					// 带着货位号请求后端过滤货位列表（重新请求接口）
+					await this.loadLocationList(matchedWh.id, locCode)
+					if (this.locationList.length > 0) {
+						uni.showToast({ title: '已匹配仓库' + whCode + ' 货位:' + this.locationList[0].code, icon: 'success' })
+					} else {
+						uni.showToast({ title: '已切换仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
+					}
+				} else {
+					uni.showToast({ title: '未找到仓库: ' + whCode, icon: 'none' })
+				}
+			} else if (this.scanResult) {
+				// 纯条码，在当前仓库搜索货位
+				this.searchKeyword = this.scanResult
 				this.doSearch()
 			}
 		}
@@ -525,6 +571,22 @@ export default {
 	font-weight: 600;
 	word-break: break-all;
 	line-height: 1.5;
+}
+
+.wh-dialog-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+}
+
+.wh-dialog-row .wh-dialog-label {
+	flex-shrink: 0;
+	margin-right: 16rpx;
+}
+
+.wh-dialog-row .wh-dialog-value {
+	text-align: right;
 }
 
 .wh-dialog-footer {
