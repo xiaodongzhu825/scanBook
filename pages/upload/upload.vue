@@ -2482,8 +2482,8 @@ export default {
   color: #606266;
   font-weight: 500;
   flex-shrink: 0;
-  width: 140rpx;
-  margin-right: 12rpx;
+  margin-right: 16rpx;
+  white-space: nowrap;
 }
 
 .info-inline-input {
