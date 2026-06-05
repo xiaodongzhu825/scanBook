@@ -30,72 +30,77 @@
 			<swiper-item>
 				<view class="tab-content">
 					<scroll-view class="content-scroll" scroll-y="true">
-						<!-- 品相 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">品相</text>
-							</view>
-							<view class="condition-list">
-								<view
-									class="condition-item"
-									v-for="(item, index) in conditionList"
-									:key="index"
-									:class="{ active: selectedCondition === item }"
-									@click="selectCondition(item)"
-								>
-									<text class="condition-text">{{ item }}</text>
+						<!-- 基本信息块（品相 + 货区&ISBN + 书名 + 价格&库存） -->
+						<view class="info-block">
+							<!-- 品相 -->
+							<view class="info-block-row">
+								<view class="field-label">
+									<text class="label-text">品相</text>
 								</view>
-							</view>
-						</view>
-
-						<!-- 货区 & ISBN -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">货区 & ISBN</text>
-							</view>
-							<view class="inline-fields" style="flex:1;">
-								<view class="inline-field narrow">
-									<view class="picker-box" style="flex:1;" @click="openWarehousePicker('isbn')">
-										<text class="picker-value">{{ isbnSelectedArea || '请选择货区' }}</text>
-										<text class="picker-arrow">›</text>
+								<view class="condition-list">
+									<view
+										class="condition-item"
+										v-for="(item, index) in conditionList"
+										:key="index"
+										:class="{ active: selectedCondition === item }"
+										@click="selectCondition(item)"
+									>
+										<text class="condition-text">{{ item }}</text>
 									</view>
 								</view>
-								<view class="inline-field isbn-field">
-									<view class="isbn-input-box" style="flex:1;">
-										<input class="isbn-input" v-model="isbn" placeholder="ISBN或扫码" maxlength="13"/>
-										<view class="scan-btn" @click="scanISBN">
-											<text class="scan-icon">📷</text>
-										</view>
-										<view class="search-btn" @click="searchISBN">
-											<text class="search-text">搜</text>
+							</view>
+
+							<view class="info-block-divider"></view>
+
+							<!-- 货区 & ISBN -->
+							<view class="info-block-row">
+								<view class="field-label">
+									<text class="label-text">货区 & ISBN</text>
+								</view>
+								<view class="inline-fields" style="flex:1;">
+									<view class="inline-field narrow">
+										<view class="picker-box" style="flex:1;" @click="openWarehousePicker('isbn')">
+											<text class="picker-value">{{ isbnSelectedArea || '请选择货区' }}</text>
+											<text class="picker-arrow">›</text>
 										</view>
 									</view>
-								</view>
-							</view>
-						</view>
-
-						<!-- 书名 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">书名</text>
-							</view>
-							<input class="form-input" v-model="bookName" placeholder="请输入书名"/>
-						</view>
-
-						<!-- 价格 & 库存 -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">价格 & 库存</text>
-							</view>
-							<view class="inline-fields" style="flex:1;">
-								<view class="inline-field">
-									<view class="price-input-box" style="flex:1;">
-										<text class="price-symbol">¥</text>
-										<input class="price-input" v-model="price" type="digit" placeholder="价格"/>
+									<view class="inline-field isbn-field">
+										<view class="isbn-input-box" style="flex:1;">
+											<input class="isbn-input" v-model="isbn" placeholder="ISBN或扫码" maxlength="13"/>
+											<view class="scan-btn" @click="scanISBN">
+												<text class="scan-icon">📷</text>
+											</view>
+											<view class="search-btn" @click="searchISBN">
+												<text class="search-text">搜</text>
+											</view>
+										</view>
 									</view>
 								</view>
-								<view class="inline-field">
-									<input class="form-input" v-model="stock" type="number" placeholder="库存" style="flex:1;"/>
+							</view>
+
+							<view class="info-block-divider"></view>
+
+							<!-- 书名（标签在前） -->
+							<view class="info-inline-row">
+								<text class="info-inline-label">书名</text>
+								<input class="form-input info-inline-input" v-model="bookName" placeholder="请输入书名"/>
+							</view>
+
+							<view class="info-block-divider"></view>
+
+							<!-- 价格 & 库存（标签在前） -->
+							<view class="info-inline-row">
+								<text class="info-inline-label">价格 & 库存</text>
+								<view class="inline-fields" style="flex:1;">
+									<view class="inline-field">
+										<view class="price-input-box" style="flex:1;">
+											<text class="price-symbol">¥</text>
+											<input class="price-input" v-model="price" type="digit" placeholder="价格"/>
+										</view>
+									</view>
+									<view class="inline-field">
+										<input class="form-input" v-model="stock" type="number" placeholder="库存" style="flex:1;"/>
+									</view>
 								</view>
 							</view>
 						</view>
@@ -221,69 +226,76 @@
 				<view class="tab-content">
 					<scroll-view class="content-scroll" scroll-y="true">
 
-						<!-- ===== 品相（最上方） ===== -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">品相</text>
-							</view>
-							<view class="condition-list">
-								<view 
-									class="condition-item" 
-									v-for="(item, index) in conditionList" 
-									:key="index"
-									:class="{ active: noIsbnSelectedCondition === item }"
-									@click="noIsbnSelectedCondition = item"
-								>
-									<text class="condition-text">{{ item }}</text>
+						<!-- ===== 基本信息块（品相 + 货区 + 书名 + 价格&库存） ===== -->
+						<view class="info-block">
+							<!-- 品相 -->
+							<view class="info-block-row">
+								<view class="field-label">
+									<text class="label-text">品相</text>
 								</view>
-							</view>
-						</view>
-
-						<!-- ===== 基本信息 ===== -->
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">货区</text>
-							</view>
-							<view class="picker-box" @click="openWarehousePicker('no-isbn')">
-								<text class="picker-value">{{ noIsbnSelectedArea || '请选择货区' }}</text>
-								<text class="picker-arrow">›</text>
-							</view>
-						</view>
-
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">书名</text>
-							</view>
-							<view class="inline-fields" style="flex:1;">
-								<view class="inline-field" style="flex:1;">
-									<input class="form-input" v-model="noIsbnBookName" placeholder="请输入书名" style="flex:1;" />
-								</view>
-								<view class="inline-field" style="flex:none;">
-									<view class="search-btn" @click="searchNoIsbn">
-										<text class="search-text">搜</text>
-									</view>
-								</view>
-								<view class="inline-field" style="flex:none;margin-left:10rpx;">
-									<view class="scan-btn" @click="chooseImageNoIsbn">
-										<text class="scan-icon">📷</text>
+								<view class="condition-list">
+									<view 
+										class="condition-item" 
+										v-for="(item, index) in conditionList" 
+										:key="index"
+										:class="{ active: noIsbnSelectedCondition === item }"
+										@click="noIsbnSelectedCondition = item"
+									>
+										<text class="condition-text">{{ item }}</text>
 									</view>
 								</view>
 							</view>
-						</view>
 
-						<view class="form-section">
-							<view class="field-label">
-								<text class="label-text">价格</text>
+							<view class="info-block-divider"></view>
+
+							<!-- 货区 -->
+							<view class="info-block-row">
+								<view class="field-label">
+									<text class="label-text">货区</text>
+								</view>
+								<view class="picker-box" @click="openWarehousePicker('no-isbn')">
+									<text class="picker-value">{{ noIsbnSelectedArea || '请选择货区' }}</text>
+									<text class="picker-arrow">›</text>
+								</view>
 							</view>
-							<view class="inline-fields" style="flex:1;">
-								<view class="inline-field" style="flex:1;">
-									<view class="price-input-box" style="flex:1;">
-										<text class="price-symbol">¥</text>
-										<input class="price-input" v-model="noIsbnPrice" placeholder="售价" type="digit" />
+
+							<view class="info-block-divider"></view>
+
+							<!-- 书名（标签在前） -->
+							<view class="info-inline-row">
+								<text class="info-inline-label">书名</text>
+								<view class="inline-fields" style="flex:1;">
+									<view class="inline-field" style="flex:1;">
+										<input class="form-input" v-model="noIsbnBookName" placeholder="请输入书名" style="flex:1;" />
+									</view>
+									<view class="inline-field" style="flex:none;">
+										<view class="search-btn" @click="searchNoIsbn">
+											<text class="search-text">搜</text>
+										</view>
+									</view>
+									<view class="inline-field" style="flex:none;margin-left:10rpx;">
+										<view class="scan-btn" @click="chooseImageNoIsbn">
+											<text class="scan-icon">📷</text>
+										</view>
 									</view>
 								</view>
-								<view class="inline-field" style="flex:1;">
-									<input class="form-input" v-model="noIsbnStock" type="number" placeholder="库存" style="flex:1;" />
+							</view>
+
+							<view class="info-block-divider"></view>
+
+							<!-- 价格 & 库存（标签在前） -->
+							<view class="info-inline-row">
+								<text class="info-inline-label">价格 & 库存</text>
+								<view class="inline-fields" style="flex:1;">
+									<view class="inline-field" style="flex:1;">
+										<view class="price-input-box" style="flex:1;">
+											<text class="price-symbol">¥</text>
+											<input class="price-input" v-model="noIsbnPrice" placeholder="售价" type="digit" />
+										</view>
+									</view>
+									<view class="inline-field" style="flex:1;">
+										<input class="form-input" v-model="noIsbnStock" type="number" placeholder="库存" style="flex:1;" />
+									</view>
 								</view>
 							</view>
 						</view>
@@ -1939,15 +1951,8 @@ export default {
 			uni.showModal({
 				title: '确认上传',
 				content: contentLines.join('\n'),
-				confirmText: '确认上传',
-				cancelText: '取消',
-				success: (res) => {
-					if (res.confirm) {
-						this.doSubmit(warehouseData)
-					} else {
-						this.isSubmitting = false
-					}
-				}
+				showCancel: false,
+				confirmText: '确定'
 			})
 		},
 
@@ -2451,6 +2456,44 @@ export default {
 
 .tab-content {
   padding: 16rpx;
+}
+
+/* ========== 基本信息合并块（品相+货区+书名+价格） ========== */
+.info-block {
+  background-color: #ffffff;
+  border-radius: 12rpx;
+  border: 2rpx solid #ebeef5;
+  padding: 20rpx 24rpx;
+}
+
+.info-block-row {
+  padding: 4rpx 0;
+}
+
+.info-block-divider {
+  height: 2rpx;
+  background-color: #f2f3f5;
+  margin: 6rpx 0;
+}
+
+/* 行内标签在前 */
+.info-inline-row {
+  display: flex;
+  align-items: center;
+  padding: 4rpx 0;
+}
+
+.info-inline-label {
+  font-size: 26rpx;
+  color: #606266;
+  font-weight: 500;
+  flex-shrink: 0;
+  width: 140rpx;
+  margin-right: 12rpx;
+}
+
+.info-inline-input {
+  flex: 1;
 }
 
 /* ========== 表单区块 ========== */
