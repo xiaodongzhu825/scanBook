@@ -61,7 +61,7 @@ function buildAuthHeader(objectKey, date, contentType, contentSha256) {
   var signedHeadersStr = signedHeadersList.join(';')
 
   var canonicalRequest =
-    'PUT\n' + canonicalUri + '\n\n' + canonicalHeaders + signedHeadersStr + '\n' + contentSha256
+    'PUT\n' + canonicalUri + '\n\n' + canonicalHeaders + '\n' + signedHeadersStr + '\n' + contentSha256
 
   var credentialScope = dateStr + '/' + CFG.region + '/s3/aws4_request'
   var stringToSign = 'AWS4-HMAC-SHA256\n' + amzDate + '\n' + credentialScope + '\n' + sha256Hex(canonicalRequest)
@@ -206,8 +206,8 @@ export function uploadImage(filePath, typeDir) {
       readFileAsBase64(filePath).then(function (base64) {
         var fileBytes = base64ToBytes(base64)
         var fileByteArray = new Uint8Array(fileBytes)
-        // 使用 UNSIGNED-PAYLOAD 简化签名（排除sha256计算差异）
-        var payloadHash = 'UNSIGNED-PAYLOAD'
+        // 计算文件内容的实际 SHA256 用于签名
+        var payloadHash = sha256(fileBytes)
 
         // 构建对象路径
         var now = getServerDate()
