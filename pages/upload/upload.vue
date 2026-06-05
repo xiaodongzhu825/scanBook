@@ -2001,38 +2001,67 @@ export default {
 			try {
 				console.log('【上传】MinIO图片URL列表:', imageUrls)
 
-				uni.hideLoading()
+				// 品相纯数字
+				const conditionDisplay = (this.currentTab === 'isbn' ? this.conditionValue : this.noIsbnConditionValue).replace('~', '')
 
-				// 构建上传数据
-				const formData = {
-					token: uni.getStorageSync('token'),
-					userId: uni.getStorageSync('userId'),
-					warehouseId: warehouseData.warehouseId,
-					warehouseCode: warehouseData.warehouseCode,
-					locationId: warehouseData.locationId,
-					locationCode: warehouseData.locationCode,
-					conditionValue: this.currentTab === 'isbn' ? this.conditionValue : this.noIsbnConditionValue,
-					images: imageUrls
+				// 构建 form-data 参数
+				const userId = uni.getStorageSync('userId') || ''
+				const apiData = {
+					userid: userId,
+					warehouse_id: String(warehouseData.warehouseId || ''),
+					location_id: String(warehouseData.locationId || ''),
+					isbn: '',
+					price: '',
+					stock: '',
+					appearance: conditionDisplay,
+					product_name: '',
+					photos: imageUrls
 				}
 
 				if (this.currentTab === 'isbn') {
-					formData.isbn = this.isbn
-					formData.bookName = this.bookName
-					formData.price = this.price
-					formData.stock = this.stock
-					formData.author = this.author
-					formData.publisher = this.publisher
-					formData.fixPrice = this.fixPrice
-					formData.printTime = this.printTime
+					apiData.isbn = this.isbn || ''
+					apiData.price = this.price || ''
+					apiData.stock = String(this.stock ?? '')
+					apiData.product_name = this.bookName || ''
 				} else {
-					formData.bookName = this.noIsbnBookName
-					formData.price = this.noIsbnPrice
-					formData.stock = this.noIsbnStock
-					formData.author = this.noIsbnAuthor
-					formData.publisher = this.noIsbnPublisher
-					formData.originalPrice = this.noIsbnOriginalPrice
-					formData.isbn = this.noIsbnIsbn || this.noIsbnUnifyIsbn
-					formData.printTime = this.noIsbnPrintTime
+					apiData.isbn = this.noIsbnIsbn || this.noIsbnUnifyIsbn || ''
+					apiData.price = this.noIsbnPrice || ''
+					apiData.stock = String(this.noIsbnStock ?? '')
+					apiData.product_name = this.noIsbnBookName || ''
+				}
+
+				// 调用 API 推送到店铺
+				const apiUrl = 'http://192.168.101.213:9090/api/product/pushToShop'
+				console.log('【上传】推送API:', apiUrl, apiData)
+
+				// 使用 uni.request 以 form-urlencoded 方式发送
+				const res = await new Promise(function (resolve, reject) {
+					uni.request({
+						url: apiUrl,
+						method: 'POST',
+						header: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						data: {
+							userid: apiData.userid,
+							warehouse_id: apiData.warehouse_id,
+							location_id: apiData.location_id,
+							isbn: apiData.isbn,
+							price: apiData.price,
+							stock: apiData.stock,
+							appearance: apiData.appearance,
+							product_name: apiData.product_name,
+							photos: apiData.photos.join(',')
+						},
+						success: function (r) { resolve(r) },
+						fail: function (e) { reject(e) }
+					})
+				})
+
+				console.log('【上传】API响应:', res.statusCode, res.data)
+
+				uni.hideLoading()
+
+				if (res.statusCode !== 200) {
+					throw new Error('API返回: HTTP ' + res.statusCode + ' ' + JSON.stringify(res.data || ''))
 				}
 
 				// 保存上传记录到本地
@@ -2041,7 +2070,9 @@ export default {
 					id: Date.now(),
 					time: new Date().toLocaleString(),
 					type: this.currentTab,
-					data: formData
+					apiUrl: apiUrl,
+					apiResponse: res.data,
+					data: apiData
 				})
 				uni.setStorageSync('uploadHistory', uploadHistory.slice(0, 100))
 
