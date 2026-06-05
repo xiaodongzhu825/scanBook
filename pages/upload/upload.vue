@@ -826,6 +826,7 @@
 <script>
 import { getWarehouseList, getLocationList, searchBookByIsbn } from '@/utils/api.js'
 import { login as kongfzLogin, searchProducts, searchFacet } from '@/utils/kongfz.js'
+import { uploadImages } from '@/utils/minio.js'
 
 export default {
 	data() {
@@ -1949,19 +1950,101 @@ export default {
 				title: '确认上传',
 				content: contentLines.join('\n'),
 				showCancel: false,
-				confirmText: '确定'
+				confirmText: '确定',
+				success: () => {
+					this.doSubmit(warehouseData)
+				}
 			})
 		},
 
-		doSubmit(warehouseData) {
+		async doSubmit(warehouseData) {
 			this.isSubmitting = true
-			uni.showLoading({ title: '上传中...' })
-			setTimeout(() => {
+			uni.showLoading({ title: '上传中...', mask: true })
+			try {
+				// 确定图片来源
+				const photoList = this.currentTab === 'isbn' ? this.photoList : this.noIsbnPhotoList
+				const typeDir = this.currentTab === 'isbn' ? 'Isbn' : 'NoIsbn'
+
+				// 上传图片到 MinIO
+				const imageUrls = await uploadImages(photoList, typeDir)
+				console.log('【上传】MinIO图片URL列表:', imageUrls)
+
 				uni.hideLoading()
+
+				// 构建上传数据
+				const formData = {
+					token: uni.getStorageSync('token'),
+					userId: uni.getStorageSync('userId'),
+					warehouseId: warehouseData.warehouseId,
+					warehouseCode: warehouseData.warehouseCode,
+					locationId: warehouseData.locationId,
+					locationCode: warehouseData.locationCode,
+					conditionValue: this.currentTab === 'isbn' ? this.conditionValue : this.noIsbnConditionValue,
+					images: imageUrls
+				}
+
+				if (this.currentTab === 'isbn') {
+					formData.isbn = this.isbn
+					formData.bookName = this.bookName
+					formData.price = this.price
+					formData.stock = this.stock
+					formData.author = this.author
+					formData.publisher = this.publisher
+					formData.fixPrice = this.fixPrice
+					formData.printTime = this.printTime
+				} else {
+					formData.bookName = this.noIsbnBookName
+					formData.price = this.noIsbnPrice
+					formData.stock = this.noIsbnStock
+					formData.author = this.noIsbnAuthor
+					formData.publisher = this.noIsbnPublisher
+					formData.originalPrice = this.noIsbnOriginalPrice
+					formData.isbn = this.noIsbnIsbn || this.noIsbnUnifyIsbn
+					formData.printTime = this.noIsbnPrintTime
+				}
+
+				// 保存上传记录到本地
+				const uploadHistory = uni.getStorageSync('uploadHistory') || []
+				uploadHistory.unshift({
+					id: Date.now(),
+					time: new Date().toLocaleString(),
+					type: this.currentTab,
+					data: formData
+				})
+				uni.setStorageSync('uploadHistory', uploadHistory.slice(0, 100))
+
+				uni.showToast({ title: '上传成功，共' + imageUrls.length + '张图片', icon: 'success' })
+
+				// 清空表单
+				if (this.currentTab === 'isbn') {
+					this.photoList = []
+					this.isbn = ''
+					this.bookName = ''
+					this.price = ''
+					this.stock = ''
+					this.author = ''
+					this.publisher = ''
+					this.fixPrice = ''
+					this.printTime = ''
+				} else {
+					this.noIsbnPhotoList = []
+					this.noIsbnBookName = ''
+					this.noIsbnPrice = ''
+					this.noIsbnStock = ''
+					this.noIsbnAuthor = ''
+					this.noIsbnPublisher = ''
+					this.noIsbnOriginalPrice = ''
+					this.noIsbnIsbn = ''
+					this.noIsbnUnifyIsbn = ''
+					this.noIsbnPrintTime = ''
+				}
+			} catch (e) {
+				uni.hideLoading()
+				console.error('【上传】失败:', e)
+				uni.showToast({ title: '上传失败: ' + (e.message || '未知错误'), icon: 'none', duration: 3000 })
+			} finally {
 				this.isSubmitting = false
-				uni.showToast({ title: '上传成功', icon: 'success' })
-				// 清空表单待后续对接真实API
-			}, 1500)
+			}
 		},
 
 		// 无ISBN - 书名搜索（使用与ISBN相同的kongfz接口）
