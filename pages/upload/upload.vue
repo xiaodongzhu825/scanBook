@@ -2031,7 +2031,8 @@ export default {
 				}
 
 				// 调用 API 推送到店铺
-				const apiUrl = 'http://192.168.101.213:9092/api/product/pushToShop'
+				const apiUrl = 'https://psi.api.buzhiyushu.cn/api/product/pushToShop'
+				const token = uni.getStorageSync('token') || ''
 				console.log('【上传】推送API:', apiUrl, apiData)
 
 				// 使用 uni.request 以 form-urlencoded 方式发送
@@ -2039,7 +2040,10 @@ export default {
 					uni.request({
 						url: apiUrl,
 						method: 'POST',
-						header: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						header: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							'Authorization': 'Bearer ' + token
+						},
 						data: {
 							userid: apiData.userid,
 							warehouse_id: apiData.warehouse_id,
