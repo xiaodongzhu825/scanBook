@@ -107,22 +107,64 @@ function buildAuthHeader(objectKey, date) {
 
 /**
  * 读取本地图片为 base64
+ * 优先级：plus.io FileReader → uni.getFileSystemManager → XHR
  */
 function readFileAsBase64(filePath) {
   return new Promise((resolve, reject) => {
-    // 优先使用 plus.io（HBuilder 原生 App）
-    if (typeof plus !== 'undefined' && plus.io) {
-      plus.io.readFile(filePath, { encoding: 'base64' }, function (data) {
-        resolve(data)
+    if (typeof plus !== 'undefined' && plus.io && plus.io.FileReader) {
+      // HBuilder App 原生：通过 resolveLocalFileSystemURL 获取文件入口
+      plus.io.resolveLocalFileSystemURL(filePath, function (entry) {
+        entry.file(function (file) {
+          const reader = new plus.io.FileReader()
+          reader.onloadend = function (e) {
+            var base64 = e.target.result
+            // 如果返回 data:image/... 格式，去掉前缀
+            if (base64.indexOf(',') > -1) {
+              base64 = base64.split(',')[1]
+            }
+            resolve(base64)
+          }
+          reader.onerror = function () {
+            reject(new Error('plus.io.FileReader 读取失败'))
+          }
+          reader.readAsDataURL(file)
+        }, function () {
+          reject(new Error('获取文件对象失败'))
+        })
       }, function (err) {
-        // 如果 plus.io 失败，回退到 XHR
-        console.warn('plus.io.readFile 失败，回退到 XHR:', JSON.stringify(err))
-        readViaXHR(filePath, resolve, reject)
+        console.warn('resolveLocalFileSystemURL 失败，尝试 getFileSystemManager:', JSON.stringify(err))
+        tryGetFileSystemManager(filePath, resolve, reject)
+      })
+    } else {
+      tryGetFileSystemManager(filePath, resolve, reject)
+    }
+  })
+}
+
+/**
+ * 尝试通过 uni.getFileSystemManager 读取文件（uni-app 支持）
+ */
+function tryGetFileSystemManager(filePath, resolve, reject) {
+  try {
+    const fs = uni.getFileSystemManager()
+    if (fs && fs.readFile) {
+      fs.readFile({
+        filePath: filePath,
+        encoding: 'base64',
+        success: function (res) {
+          resolve(res.data)
+        },
+        fail: function () {
+          console.warn('getFileSystemManager 失败，回退到 XHR')
+          readViaXHR(filePath, resolve, reject)
+        }
       })
     } else {
       readViaXHR(filePath, resolve, reject)
     }
-  })
+  } catch (e) {
+    readViaXHR(filePath, resolve, reject)
+  }
 }
 
 /**
