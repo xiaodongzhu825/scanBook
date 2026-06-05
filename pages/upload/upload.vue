@@ -32,12 +32,10 @@
 					<scroll-view class="content-scroll" scroll-y="true">
 						<!-- 基本信息块（品相 + 货区&ISBN + 书名 + 价格&库存） -->
 						<view class="info-block">
-							<!-- 品相 -->
-							<view class="info-block-row">
-								<view class="field-label">
-									<text class="label-text">品相</text>
-								</view>
-								<view class="condition-list">
+							<!-- 品相（标签在前） -->
+							<view class="info-inline-row">
+								<text class="info-inline-label">品相</text>
+								<view class="condition-list" style="flex:1;">
 									<view
 										class="condition-item"
 										v-for="(item, index) in conditionList"
@@ -130,11 +128,9 @@
 							</view>
 						</view>
 
-						<!-- 市场竞争 -->
+						<!-- 市场竞争 & 在售商品（合并块） -->
 						<view class="form-section">
-							<view class="section-title">
-								<text class="title-text">市场竞争</text>
-							</view>
+							<!-- 市场统计 -->
 							<view class="market-stats">
 								<view class="stat-item">
 									<text class="stat-label">在售</text>
@@ -153,12 +149,12 @@
 									<text class="stat-value">{{ marketData.sold }}</text>
 								</view>
 							</view>
-						</view>
 
-						<!-- 在售商品 -->
-						<view class="form-section">
+							<view class="info-block-divider" style="margin:14rpx 0;"></view>
+
+							<!-- 在售商品 -->
 							<view class="section-header-row">
-								<view class="section-title">
+								<view class="section-title" style="margin-bottom:0;">
 									<text class="title-text">在售商品</text>
 								</view>
 								<view class="compare-toggle">
@@ -228,12 +224,10 @@
 
 						<!-- ===== 基本信息块（品相 + 货区 + 书名 + 价格&库存） ===== -->
 						<view class="info-block">
-							<!-- 品相 -->
-							<view class="info-block-row">
-								<view class="field-label">
-									<text class="label-text">品相</text>
-								</view>
-								<view class="condition-list">
+							<!-- 品相（标签在前） -->
+							<view class="info-inline-row">
+								<text class="info-inline-label">品相</text>
+								<view class="condition-list" style="flex:1;">
 									<view 
 										class="condition-item" 
 										v-for="(item, index) in conditionList" 
