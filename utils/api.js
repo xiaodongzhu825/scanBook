@@ -136,12 +136,13 @@ function generateSimpleSignedUrl(baseUrl, params = {}) {
 }
 
 /**
- * 获取PSI系统token（从本地存储读取，login.vue登录成功后保存）
+ * 获取PSI系统token
+ * PSI系统的token独立存储(psi_token)，与通用登录token(biz登录)互不冲突。
+ * 用户需先在 psi.buzhiyushu.cn 登录后，将token复制到本地存储。
  * 返回空字符串时后续API请求将收到401，由requestWithRetry统一处理
  */
 function getAuthToken() {
-	const token = uni.getStorageSync('token')
-	console.log('【getAuthToken】读取token:', token ? (token.substring(0, 20) + '...') : '(空)')
+	const token = uni.getStorageSync('psi_token')
 	return token || ''
 }
 
