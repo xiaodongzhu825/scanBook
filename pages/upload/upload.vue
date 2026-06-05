@@ -1875,7 +1875,7 @@ export default {
 		},
 
 		// 提交上传
-		submitUpload() {
+		async submitUpload() {
 			if (this.isSubmitting) return
 
 			const warehouseData = this.currentTab === 'isbn' ? this.isbnWarehouseData : this.noIsbnWarehouseData
@@ -1899,7 +1899,7 @@ export default {
 				return
 			}
 
-			let contentLines
+			// 校验必填字段
 			if (this.currentTab === 'isbn') {
 				if (!this.isbn) {
 					uni.showToast({ title: 'ISBN不能为空', icon: 'none' })
@@ -1909,19 +1909,6 @@ export default {
 					uni.showToast({ title: '售价不能为空', icon: 'none' })
 					return
 				}
-				contentLines = [
-					'🆔 用户ID：' + psiUserId,
-					'📦 货区：' + locationText,
-					'📖 ISBN：' + (this.isbn || '-'),
-					'📕 书名：' + (this.bookName || '-'),
-					'💰 价格：' + (this.price || '-'),
-					'📊 库存：' + (this.stock ?? '-'),
-					'✍️ 作者：' + (this.author || '-'),
-					'🏢 出版社：' + (this.publisher || '-'),
-					'🏷️ 定价：' + (this.fixPrice || '-'),
-					'📅 印刷时间：' + (this.printTime || '-'),
-					'📷 图片：' + this.photoList.length + '张'
-				]
 			} else {
 				if (!this.noIsbnPrice) {
 					uni.showToast({ title: '售价不能为空', icon: 'none' })
@@ -1931,42 +1918,77 @@ export default {
 					uni.showToast({ title: '书名不能为空', icon: 'none' })
 					return
 				}
-				contentLines = [
-					'🆔 用户ID：' + psiUserId,
-					'📦 货区：' + locationText,
-					'📕 书名：' + (this.noIsbnBookName || '-'),
-					'✍️ 作者：' + (this.noIsbnAuthor || '-'),
-					'🏢 出版社：' + (this.noIsbnPublisher || '-'),
-					'🏷️ 定价：' + (this.noIsbnOriginalPrice || '-'),
-					'📖 ISBN：' + (this.noIsbnIsbn || this.noIsbnUnifyIsbn || '-'),
-					'📅 印刷时间：' + (this.noIsbnPrintTime || '-'),
-					'💰 价格：' + (this.noIsbnPrice || '-'),
-					'📊 库存：' + (this.noIsbnStock ?? '-'),
-					'📷 图片：' + this.noIsbnPhotoList.length + '张'
-				]
 			}
 
-			uni.showModal({
-				title: '确认上传',
-				content: contentLines.join('\n'),
-				showCancel: false,
-				confirmText: '确定',
-				success: () => {
-					this.doSubmit(warehouseData)
+			// 先上传图片到MinIO，拿到URL
+			this.isSubmitting = true
+			uni.showLoading({ title: '上传图片中...', mask: true })
+			try {
+				const photoList = this.currentTab === 'isbn' ? this.photoList : this.noIsbnPhotoList
+				const typeDir = this.currentTab === 'isbn' ? (this.isbn || 'UnknownIsbn') : this.noIsbnIsbn || this.noIsbnUnifyIsbn || 'NoIsbn'
+				const imageUrls = await uploadImages(photoList, typeDir)
+				uni.hideLoading()
+				this.isSubmitting = false
+
+				console.log('【上传】MinIO图片URL列表:', imageUrls)
+
+				// 构建弹窗内容（含MinIO图片地址）
+				const urlTexts = imageUrls.map(function (u, i) { return '  [' + (i + 1) + '] ' + u }).join('\n')
+				let contentLines
+				if (this.currentTab === 'isbn') {
+					contentLines = [
+						'🆔 用户ID：' + psiUserId,
+						'📦 货区：' + locationText,
+						'📖 ISBN：' + (this.isbn || '-'),
+						'📕 书名：' + (this.bookName || '-'),
+						'💰 价格：' + (this.price || '-'),
+						'📊 库存：' + (this.stock ?? '-'),
+						'✍️ 作者：' + (this.author || '-'),
+						'🏢 出版社：' + (this.publisher || '-'),
+						'🏷️ 定价：' + (this.fixPrice || '-'),
+						'📅 印刷时间：' + (this.printTime || '-'),
+						'📷 图片 (' + imageUrls.length + '张)：',
+						urlTexts
+					]
+				} else {
+					contentLines = [
+						'🆔 用户ID：' + psiUserId,
+						'📦 货区：' + locationText,
+						'📕 书名：' + (this.noIsbnBookName || '-'),
+						'✍️ 作者：' + (this.noIsbnAuthor || '-'),
+						'🏢 出版社：' + (this.noIsbnPublisher || '-'),
+						'🏷️ 定价：' + (this.noIsbnOriginalPrice || '-'),
+						'📖 ISBN：' + (this.noIsbnIsbn || this.noIsbnUnifyIsbn || '-'),
+						'📅 印刷时间：' + (this.noIsbnPrintTime || '-'),
+						'💰 价格：' + (this.noIsbnPrice || '-'),
+						'📊 库存：' + (this.noIsbnStock ?? '-'),
+						'📷 图片 (' + imageUrls.length + '张)：',
+						urlTexts
+					]
 				}
-			})
+
+				// 弹窗显示（含MinIO地址）
+				uni.showModal({
+					title: '确认上传',
+					content: contentLines.join('\n'),
+					showCancel: false,
+					confirmText: '确定',
+					success: () => {
+						this.doSubmit(warehouseData, imageUrls)
+					}
+				})
+			} catch (e) {
+				uni.hideLoading()
+				this.isSubmitting = false
+				console.error('【上传】图片上传失败:', e)
+				uni.showToast({ title: '图片上传失败: ' + (e.message || '未知错误'), icon: 'none', duration: 3000 })
+			}
 		},
 
-		async doSubmit(warehouseData) {
+		async doSubmit(warehouseData, imageUrls) {
 			this.isSubmitting = true
 			uni.showLoading({ title: '上传中...', mask: true })
 			try {
-				// 确定图片来源
-				const photoList = this.currentTab === 'isbn' ? this.photoList : this.noIsbnPhotoList
-				const typeDir = this.currentTab === 'isbn' ? (this.isbn || 'UnknownIsbn') : this.noIsbnIsbn || this.noIsbnUnifyIsbn || 'NoIsbn'
-
-				// 上传图片到 MinIO
-				const imageUrls = await uploadImages(photoList, typeDir)
 				console.log('【上传】MinIO图片URL列表:', imageUrls)
 
 				uni.hideLoading()
@@ -2013,7 +2035,7 @@ export default {
 				})
 				uni.setStorageSync('uploadHistory', uploadHistory.slice(0, 100))
 
-				uni.showToast({ title: '上传成功，共' + imageUrls.length + '张图片', icon: 'success' })
+				uni.showToast({ title: '上传成功', icon: 'success' })
 
 				// 清空表单
 				if (this.currentTab === 'isbn') {
