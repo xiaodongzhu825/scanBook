@@ -25,7 +25,7 @@
 			</view>
 		</view>
 
-		<swiper class="tab-swiper" :current="swiperIndex" @change="onTabSwiperChange" @touchmove.stop.prevent="">
+		<swiper class="tab-swiper" :current="swiperIndex" @change="onTabSwiperChange" :touchable="false">
 			<!-- ISBN上传内容 -->
 			<swiper-item>
 				<view class="tab-content">
