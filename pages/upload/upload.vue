@@ -1884,9 +1884,9 @@ export default {
 				return
 			}
 
-			const warehouseCode = warehouseData.warehouseCode || warehouseData.code || ''
-			const locCode = warehouseData.locationCode || warehouseData.code || ''
-			const locationText = warehouseCode + (locCode ? ' - ' + locCode : '')
+			const whId = warehouseData.warehouseId || '-'
+			const locId = warehouseData.locationId || '-'
+			const locationText = '仓库ID:' + whId + ' 货位ID:' + locId
 			const psiUserId = uni.getStorageSync('userId') || '-'
 
 			// 检查是否有图片
