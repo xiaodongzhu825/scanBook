@@ -1966,12 +1966,12 @@ export default {
 
 				if (this.currentTab === 'isbn') {
 					apiData.isbn = this.isbn || ''
-					apiData.price = this.price || ''
+					apiData.price = this.price ? String(Math.round(parseFloat(this.price) * 100)) : ''
 					apiData.stock = String(this.stock ?? '')
 					apiData.product_name = this.bookName || ''
 				} else {
 					apiData.isbn = this.noIsbnIsbn || this.noIsbnUnifyIsbn || ''
-					apiData.price = this.noIsbnPrice || ''
+					apiData.price = this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : ''
 					apiData.stock = String(this.noIsbnStock ?? '')
 					apiData.product_name = this.noIsbnBookName || ''
 				}
