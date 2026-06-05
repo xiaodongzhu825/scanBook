@@ -2065,7 +2065,19 @@ export default {
 				uni.hideLoading()
 
 				if (res.statusCode !== 200) {
-					throw new Error('API返回: HTTP ' + res.statusCode + ' ' + JSON.stringify(res.data || ''))
+					throw new Error('API返回: HTTP ' + res.statusCode)
+				}
+
+				// 解析 JSON 响应
+				var respData = res.data
+				if (typeof respData === 'string') {
+					try { respData = JSON.parse(respData) } catch (e) { respData = { code: 500, msg: respData } }
+				}
+
+				if (respData && respData.code === 200) {
+ 					uni.showToast({ title: respData.msg || '上传成功', icon: 'success' })
+				} else {
+					throw new Error(respData && respData.msg || '上传失败')
 				}
 
 				// 保存上传记录到本地
