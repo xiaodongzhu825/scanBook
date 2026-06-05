@@ -5,6 +5,19 @@
 
 import sha256 from 'js-sha256'
 
+// ====== Polyfill: atob ======
+if (typeof atob === 'undefined') {
+  var atob = function (input) {
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    input = input.replace(/=+$/, '')
+    var output = ''
+    for (var bc = 0, bs = 0, buffer, i = 0; buffer = input.charAt(i++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer, bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
+      buffer = chars.indexOf(buffer)
+    }
+    return output
+  }
+}
+
 // ====== MinIO 配置 ======
 var CFG = {
   endpoint: 'shxy.image.yushutx.com',
@@ -77,19 +90,21 @@ function buildAuthHeader(objectKey, date, contentType, contentSha256) {
   return { authHeader: authHeader, amzDate: amzDate }
 }
 
-// ====== 文件读取（直接读 ArrayBuffer，避免 base64 编解码） ======
+// ====== 文件读取（readAsDataURL → base64 → uni.base64ToArrayBuffer） ======
 
-function readFileAsArrayBuffer(filePath) {
+function readFileAsBase64(filePath) {
   return new Promise(function (resolve, reject) {
     if (typeof plus !== 'undefined' && plus.io && plus.io.FileReader) {
       plus.io.resolveLocalFileSystemURL(filePath, function (entry) {
         entry.file(function (file) {
           var reader = new plus.io.FileReader()
           reader.onloadend = function (e) {
-            resolve(e.target.result)
+            var data = e.target.result
+            if (data.indexOf(',') > -1) data = data.split(',')[1]
+            resolve(data)
           }
           reader.onerror = function () { reject(new Error('FileReader失败')) }
-          reader.readAsArrayBuffer(file)
+          reader.readAsDataURL(file)
         }, function () { reject(new Error('获取文件对象失败')) })
       }, function (err) {
         reject(new Error('resolveLocalFileSystemURL失败: ' + JSON.stringify(err)))
@@ -161,7 +176,14 @@ export function uploadImage(filePath, typeDir) {
   if (typeDir === undefined) typeDir = 'Isbn'
   return new Promise(function (resolve, reject) {
     syncServerTime().then(function () {
-      readFileAsArrayBuffer(filePath).then(function (arrayBuffer) {
+      readFileAsBase64(filePath).then(function (base64) {
+        // base64 → ArrayBuffer → Blob（Blob 是 App XHR 最可靠的二进制传输方式）
+        var binaryStr = atob(base64)
+        var bytes = new Uint8Array(binaryStr.length)
+        for (var i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i)
+        }
+        var blob = new Blob([bytes.buffer], { type: 'application/octet-stream' })
         var payloadHash = 'UNSIGNED-PAYLOAD'
 
         var now = getServerDate()
@@ -181,10 +203,10 @@ export function uploadImage(filePath, typeDir) {
 
         console.log('【MinIO上传】URL:', url)
         console.log('【MinIO上传】contentType:', contentType)
-        console.log('【MinIO上传】bufferSize:', arrayBuffer.byteLength)
+        console.log('【MinIO上传】dataSize:', blob.size, '字节')
         console.log('【MinIO上传】服务器时间:', now.toISOString())
 
-        // 使用 plus.net.XMLHttpRequest PUT
+        // 使用 plus.net.XMLHttpRequest PUT（发送 Blob）
         if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
           try {
             var xhr = new plus.net.XMLHttpRequest()
@@ -205,8 +227,8 @@ export function uploadImage(filePath, typeDir) {
             xhr.setRequestHeader('X-Amz-Content-Sha256', payloadHash)
             xhr.setRequestHeader('X-Amz-Date', sig.amzDate)
             xhr.setRequestHeader('Authorization', sig.authHeader)
-            console.log('【MinIO上传】发送数据, 大小:', arrayBuffer.byteLength, '字节')
-            xhr.send(arrayBuffer)
+            console.log('【MinIO上传】发送数据...')
+            xhr.send(blob)
             return
           } catch (e) {
             console.warn('【MinIO上传】plus XHR失败:', e)
