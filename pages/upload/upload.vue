@@ -2026,6 +2026,33 @@ export default {
 					throw new Error(respData && respData.msg || '上传失败')
 				}
 
+				// pushToShop 成功后，调用 releaseGoodsAuto API
+				var pushData = respData.data || {}
+				var goodsUserId = pushData.user_id
+				var goodsWarehouseId = pushData.warehouse_id
+				var goodsProductId = pushData.product_id
+				if (goodsUserId && goodsWarehouseId && goodsProductId) {
+					console.log('【上传】调用releaseGoodsAuto:', goodsUserId, goodsWarehouseId, goodsProductId)
+					var releaseUrl = 'http://192.168.101.127:8080/zhishu/product/releaseGoodsAuto'
+					uni.request({
+						url: releaseUrl,
+						method: 'POST',
+						data: {
+							userId: String(goodsUserId),
+							warehouseId: String(goodsWarehouseId),
+							productId: String(goodsProductId)
+						},
+						success: function (r2) {
+							console.log('【上传】releaseGoodsAuto响应:', r2.statusCode, r2.data)
+						},
+						fail: function (e2) {
+							console.warn('【上传】releaseGoodsAuto失败:', JSON.stringify(e2))
+						}
+					})
+				} else {
+					console.warn('【上传】pushToShop返回缺少data字段,跳过releaseGoodsAuto')
+				}
+
 				// 保存上传记录到本地
 				const uploadHistory = uni.getStorageSync('uploadHistory') || []
 				uploadHistory.unshift({
@@ -2037,8 +2064,6 @@ export default {
 					data: apiData
 				})
 				uni.setStorageSync('uploadHistory', uploadHistory.slice(0, 100))
-
-				uni.showToast({ title: '上传成功', icon: 'success' })
 
 				// 清空表单
 				if (this.currentTab === 'isbn') {
