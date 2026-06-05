@@ -2725,7 +2725,7 @@ picker {
   background-color: #f4f4f5;
   border: 2rpx solid #e9e9eb;
   border-radius: 6rpx;
-  padding: 4rpx 12rpx;
+  padding: 6rpx 16rpx;
   flex-shrink: 0;
 }
 
