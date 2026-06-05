@@ -25,9 +25,9 @@
 			</view>
 		</view>
 
-		<swiper class="tab-swiper" :current="swiperIndex" @change="onTabSwiperChange" :touchable="false">
+		<view class="tab-swiper">
 			<!-- ISBN上传内容 -->
-			<swiper-item>
+			<view class="tab-panel" v-show="swiperIndex === 0">
 				<view class="tab-content">
 					<scroll-view class="content-scroll" scroll-y="true">
 						<!-- 基本信息块（品相 + 货区&ISBN + 书名 + 价格&库存） -->
@@ -215,10 +215,10 @@
 						<view class="bottom-placeholder"></view>
 					</scroll-view>
 				</view>
-			</swiper-item>
+			</view>		<!-- /tab-panel ISBN -->
 
 			<!-- 无ISBN上传内容 -->
-			<swiper-item>
+			<view class="tab-panel" v-show="swiperIndex === 1">
 				<view class="tab-content">
 					<scroll-view class="content-scroll" scroll-y="true">
 
@@ -478,10 +478,10 @@
 						<view class="bottom-placeholder"></view>
 					</scroll-view>
 				</view>
-			</swiper-item>
+			</view>		<!-- /tab-panel 无ISBN -->
 
 			<!-- 设置内容 -->
-			<swiper-item>
+			<view class="tab-panel" v-show="swiperIndex === 2">
 				<view class="tab-content">
 					<view class="settings-swiper">
 						<view class="settings-sub-tabs">
@@ -679,8 +679,8 @@
 						</swiper>
 					</view>
 				</view>
-			</swiper-item>
-		</swiper>
+			</view>		<!-- /tab-panel 设置 -->
+		</view>		<!-- /tab-swiper -->
 
 		<!-- 底部提交栏 -->
 		<view class="bottom-bar">
