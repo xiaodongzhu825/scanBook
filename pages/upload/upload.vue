@@ -689,7 +689,7 @@
 
 		<!-- 底部提交栏 -->
 		<view class="bottom-bar">
-			<view class="submit-btn" @click="submitUpload">
+			<view class="submit-btn" :class="{ disabled: currentTab === 'no-isbn' }" @click="submitUpload">
 				<text class="submit-text">确认上传</text>
 			</view>
 		</view>
@@ -1881,6 +1881,8 @@ export default {
 		// 提交上传
 		async submitUpload() {
 			if (this.isSubmitting) return
+			// 无ISBN上传暂不可用
+			if (this.currentTab === 'no-isbn') return
 
 			const warehouseData = this.currentTab === 'isbn' ? this.isbnWarehouseData : this.noIsbnWarehouseData
 			if (!warehouseData) {
@@ -3296,7 +3298,8 @@ picker {
 }
 
 .submit-btn.disabled {
-  opacity: 0.6;
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 /* ========== 筛选弹窗 ========== */
