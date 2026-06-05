@@ -1,16 +1,12 @@
 /**
  * MinIO 文件上传工具
- * 使用 AWS Signature V4 签名，通过 uni.request PUT 直传到 MinIO
- *
- * 签名算法与 curl/fetch 完全一致：
- *   SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date
- *   x-amz-content-sha256 = 实际文件内容sha256
+ * 使用 AWS Signature V4 签名，通过 plus.net.XMLHttpRequest PUT 直传
  */
 
 import sha256 from 'js-sha256'
 
 // ====== MinIO 配置 ======
-const CFG = {
+var CFG = {
   endpoint: 'shxy.image.yushutx.com',
   accessKey: 'minioadmin',
   secretKey: 'minioadmin',
@@ -21,109 +17,37 @@ const CFG = {
 
 // ====== 工具函数 ======
 
-function pad(n) {
-  return n < 10 ? '0' + n : '' + n
+function pad(n) { return n < 10 ? '0' + n : '' + n }
+
+function hmacRaw(key, msg) {
+  return hexToBytes(sha256.hmac(key, msg))
 }
 
 function hexToBytes(hex) {
-  const bytes = []
-  for (let i = 0; i < hex.length; i += 2) {
+  var bytes = []
+  for (var i = 0; i < hex.length; i += 2) {
     bytes.push(parseInt(hex.substring(i, i + 2), 16))
   }
   return new Uint8Array(bytes)
 }
 
 function bytesToHex(bytes) {
-  return Array.from(bytes).map(function (b) { return (b >> 4).toString(16) + (b & 0xf).toString(16) }).join('')
+  var s = ''
+  for (var i = 0; i < bytes.length; i++) {
+    var b = bytes[i]
+    s += '0123456789abcdef'[(b >> 4) & 0xf]
+    s += '0123456789abcdef'[b & 0xf]
+  }
+  return s
 }
 
-function hmacRaw(key, msg) {
-  return hexToBytes(sha256.hmac(key, msg))
-}
-
-function getSignatureKey(secretKey, dateStamp, region, service) {
-  var k = hmacRaw('AWS4' + secretKey, dateStamp)
-  k = hmacRaw(k, region)
-  k = hmacRaw(k, service)
-  return hmacRaw(k, 'aws4_request')
-}
-
-function sha256Hex(str) {
-  return sha256(str)
-}
-
-function sha256Bytes(bytes) {
-  return sha256(bytes)
-}
-
-// ====== 时间同步 ======
-
-var _timeOffset = 0
-var _timeSyncing = false
-
-function syncServerTime() {
-  return new Promise(function (resolve) {
-    if (_timeSyncing) {
-      setTimeout(function () { resolve(new Date(Date.now() + _timeOffset)) }, 500)
-      return
-    }
-    _timeSyncing = true
-    console.log('【MinIO时间同步】开始...')
-
-    var resolved = false
-    function finish(serverDate) {
-      if (resolved) return
-      resolved = true
-      _timeSyncing = false
-      if (serverDate) {
-        _timeOffset = serverDate.getTime() - Date.now()
-        console.log('【MinIO时间同步】完成, 服务器时间:', serverDate.toISOString(), '偏移:', _timeOffset, 'ms')
-      } else {
-        console.warn('【MinIO时间同步】失败, 使用本地时间')
-      }
-      resolve(new Date(Date.now() + _timeOffset))
-    }
-
-    // 方法1: plus.net.XMLHttpRequest GET（App 环境，最可靠）
-    if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
-      try {
-        var xhr1 = new plus.net.XMLHttpRequest()
-        xhr1.onreadystatechange = function () {
-          if (xhr1.readyState === 4) {
-            var d = xhr1.getResponseHeader('Date')
-            if (d) { finish(new Date(d)); return }
-          }
-        }
-        xhr1.open('GET', CFG.protocol + '://' + CFG.endpoint + '/')
-        xhr1.send()
-      } catch (e) { console.warn('【MinIO时间同步】xhr方式失败:', e) }
-    }
-
-    // 方法2: uni.request
-    uni.request({
-      url: CFG.protocol + '://' + CFG.endpoint + '/',
-      method: 'GET',
-      success: function (res) {
-        var d = null
-        if (res.header) d = res.header.Date || res.header.date
-        if (!d && res.headers) d = res.headers.Date || res.headers.date
-        if (d) { finish(new Date(d)); return }
-      },
-      fail: function (e) {
-        console.warn('【MinIO时间同步】uni.request失败:', JSON.stringify(e))
-      }
-    })
-
-    // 兜底：8秒后没拿到就用本地时间
-    setTimeout(function () { finish(null) }, 8000)
-  })
-}
+function sha256Hex(s) { return sha256(s) }
 
 // ====== AWS V4 签名 ======
 
 function buildAuthHeader(objectKey, date, contentType, contentSha256) {
-  var dateStr = date.getFullYear() + pad(date.getMonth() + 1) + pad(date.getDate())
-  var amzDate = dateStr + 'T' + pad(date.getHours()) + pad(date.getMinutes()) + pad(date.getSeconds()) + 'Z'
+  var dateStr = date.getUTCFullYear() + pad(date.getUTCMonth() + 1) + pad(date.getUTCDate())
+  var amzDate = dateStr + 'T' + pad(date.getUTCHours()) + pad(date.getUTCMinutes()) + pad(date.getUTCSeconds()) + 'Z'
 
   var host = CFG.endpoint
   var canonicalUri = '/' + CFG.bucket + '/' + objectKey
@@ -142,7 +66,10 @@ function buildAuthHeader(objectKey, date, contentType, contentSha256) {
   var credentialScope = dateStr + '/' + CFG.region + '/s3/aws4_request'
   var stringToSign = 'AWS4-HMAC-SHA256\n' + amzDate + '\n' + credentialScope + '\n' + sha256Hex(canonicalRequest)
 
-  var signingKey = getSignatureKey(CFG.secretKey, dateStr, CFG.region, 's3')
+  var signingKey = hmacRaw('AWS4' + CFG.secretKey, dateStr)
+  signingKey = hmacRaw(signingKey, CFG.region)
+  signingKey = hmacRaw(signingKey, 's3')
+  signingKey = hmacRaw(signingKey, 'aws4_request')
   var signature = bytesToHex(hmacRaw(signingKey, stringToSign))
 
   var authHeader = 'AWS4-HMAC-SHA256 Credential=' + CFG.accessKey + '/' + credentialScope +
@@ -151,31 +78,16 @@ function buildAuthHeader(objectKey, date, contentType, contentSha256) {
   return { authHeader: authHeader, amzDate: amzDate }
 }
 
-// ====== 文件读取（先读base64再转Uint8Array用于计算sha256） ======
+// ====== 文件读取 ======
 
 function readFileAsBase64(filePath) {
   return new Promise(function (resolve, reject) {
-    // uni-app 标准 API
     try {
       var fs = uni.getFileSystemManager()
       if (fs && fs.readFile) {
-        fs.readFile({
-          filePath: filePath,
-          encoding: 'base64',
-          success: function (res) { resolve(res.data) },
-          fail: function () {
-            // 回退到 plus.io
-            if (typeof plus !== 'undefined' && plus.io && plus.io.FileReader) {
-              readViaPlus(filePath, resolve, reject)
-            } else {
-              reject(new Error('无法读取文件'))
-            }
-          }
-        })
-      } else if (typeof plus !== 'undefined' && plus.io && plus.io.FileReader) {
-        readViaPlus(filePath, resolve, reject)
+        fs.readFile({ filePath: filePath, encoding: 'base64', success: function (res) { resolve(res.data) }, fail: function () { reject(new Error('readFile失败')) } })
       } else {
-        reject(new Error('当前环境不支持文件读取'))
+        reject(new Error('不支持文件读取'))
       }
     } catch (e) {
       reject(new Error('读取文件异常: ' + e.message))
@@ -183,23 +95,7 @@ function readFileAsBase64(filePath) {
   })
 }
 
-function readViaPlus(filePath, resolve, reject) {
-  plus.io.resolveLocalFileSystemURL(filePath, function (entry) {
-    entry.file(function (file) {
-      var reader = new plus.io.FileReader()
-      reader.onloadend = function (e) {
-        var data = e.target.result
-        if (data.indexOf(',') > -1) data = data.split(',')[1]
-        resolve(data)
-      }
-      reader.onerror = function () { reject(new Error('FileReader失败')) }
-      reader.readAsDataURL(file)
-    }, function () { reject(new Error('获取文件对象失败')) })
-  }, function () { reject(new Error('resolveLocalFileSystemURL失败')) })
-}
-
 function base64ToBytes(base64) {
-  // 手动解码 base64 到 Uint8Array（避免 atob 兼容问题）
   var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
   base64 = base64.replace(/=+$/, '')
   var bytes = []
@@ -208,59 +104,140 @@ function base64ToBytes(base64) {
     var b = chars.indexOf(base64[i + 1])
     var c = chars.indexOf(base64[i + 2])
     var d = chars.indexOf(base64[i + 3])
-    bytes.push((a << 2) | (b >> 4))
-    if (c >= 0) bytes.push(((b & 0xf) << 4) | (c >> 2))
-    if (d >= 0) bytes.push(((c & 3) << 6) | d)
+    if (a >= 0 && b >= 0) {
+      bytes.push((a << 2) | (b >> 4))
+      if (c >= 0) bytes.push(((b & 0xf) << 4) | (c >> 2))
+      if (d >= 0) bytes.push(((c & 3) << 6) | d)
+    }
   }
   return bytes
 }
 
+// ====== 时间同步（用 plus.net.XMLHttpRequest GET，直接读 Date 响应头） ======
+
+var _cachedTimeOffset = null
+
+function syncServerTime() {
+  return new Promise(function (resolve) {
+    console.log('【MinIO时间同步】开始...')
+
+    // 尝试用 plus.net.XMLHttpRequest GET 根路径获取 Date 头
+    if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
+      try {
+        var xhr = new plus.net.XMLHttpRequest()
+        var timer = setTimeout(function () {
+          console.warn('【MinIO时间同步】超时')
+          xhr.abort()
+          resolve(new Date())
+        }, 10000)
+
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            clearTimeout(timer)
+            try {
+              var dateStr = xhr.getResponseHeader('Date')
+              console.log('【MinIO时间同步】readyState=4, status:', xhr.status, ', Date头:', dateStr)
+              if (dateStr) {
+                var serverMs = Date.parse(dateStr)
+                if (!isNaN(serverMs)) {
+                  _cachedTimeOffset = serverMs - Date.now()
+                  console.log('【MinIO时间同步】成功! 服务器ms:', serverMs, '本地ms:', Date.now(), '偏移:', _cachedTimeOffset, 'ms')
+                  resolve(new Date(Date.now() + _cachedTimeOffset))
+                  return
+                }
+              }
+            } catch (e) {
+              console.warn('【MinIO时间同步】解析异常:', e)
+            }
+            resolve(new Date())
+          }
+        }
+        xhr.open('GET', CFG.protocol + '://' + CFG.endpoint + '/')
+        xhr.send()
+        return
+      } catch (e) {
+        console.warn('【MinIO时间同步】创建XHR失败:', e)
+      }
+    }
+
+    // 兜底
+    resolve(new Date())
+  })
+}
+
+function getServerDate() {
+  if (_cachedTimeOffset !== null) {
+    return new Date(Date.now() + _cachedTimeOffset)
+  }
+  return new Date()
+}
+
 // ====== 上传 ======
 
-/**
- * 使用 uni.request 上传单张图片到 MinIO（与 fetch 示例等价）
- */
 export function uploadImage(filePath, typeDir) {
   if (typeDir === undefined) typeDir = 'Isbn'
   return new Promise(function (resolve, reject) {
-    // 第一步：同步服务器时间
-    syncServerTime().then(function (serverDate) {
-      // 第二步：读取文件
+    syncServerTime().then(function () {
       readFileAsBase64(filePath).then(function (base64) {
-        // 解码为二进制字节数组
         var fileBytes = base64ToBytes(base64)
         var fileByteArray = new Uint8Array(fileBytes)
-
-        // 计算文件内容的 SHA256（使用整数数组避免 to UTF-8 的问题）
-        var fileSha256 = sha256Bytes(fileBytes)
+        var fileSha256 = sha256(fileBytes)
 
         // 构建对象路径
-        var now = serverDate
+        var now = getServerDate()
         var datePath = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
         var ext = (filePath.match(/\.(\w+)$/) || [])[1] || 'jpg'
         ext = ext.toLowerCase()
-        var objectKey = datePath + '/' + typeDir + '/' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
           var r = Math.random() * 16 | 0
           return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
-        }) + '.' + ext
+        })
+        var objectKey = datePath + '/' + typeDir + '/' + uuid + '.' + ext
+        var ct = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp' }
+        var contentType = ct[ext] || 'image/jpeg'
 
-        var contentTypeMap = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp' }
-        var contentType = contentTypeMap[ext] || 'image/jpeg'
-
-        // 构建签名（使用实际文件sha256）
         var sig = buildAuthHeader(objectKey, now, contentType, fileSha256)
-
         var url = CFG.protocol + '://' + CFG.endpoint + '/' + CFG.bucket + '/' + objectKey
 
         console.log('【MinIO上传】URL:', url)
+        console.log('【MinIO上传】amzDate:', sig.amzDate)
+        console.log('【MinIO上传】authHeader:', sig.authHeader)
         console.log('【MinIO上传】contentType:', contentType)
-        console.log('【MinIO上传】contentLength:', fileByteArray.length)
-        console.log('【MinIO上传】x-amz-content-sha256:', fileSha256)
+        console.log('【MinIO上传】fileSha256:', fileSha256)
+        console.log('【MinIO上传】本地时间:', new Date().toISOString(), '服务器时间:', now.toISOString())
 
-        // 第三步：使用 uni.request PUT 上传（与 fetch 完全一致）
+        // ====== 使用 plus.net.XMLHttpRequest PUT ======
+        if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
+          try {
+            var xhr = new plus.net.XMLHttpRequest()
+            xhr.onreadystatechange = function () {
+              if (xhr.readyState === 4) {
+                console.log('【MinIO上传】onreadystatechange status:', xhr.status)
+                if (xhr.status === 200) {
+                  console.log('【MinIO上传】成功:', url)
+                  resolve(url)
+                } else {
+                  console.error('【MinIO上传】失败, HTTP:', xhr.status, xhr.responseText || xhr.response)
+                  reject(new Error('上传失败: HTTP ' + xhr.status))
+                }
+              }
+            }
+            xhr.open('PUT', url)
+            xhr.setRequestHeader('Content-Type', contentType)
+            xhr.setRequestHeader('X-Amz-Content-Sha256', fileSha256)
+            xhr.setRequestHeader('X-Amz-Date', sig.amzDate)
+            xhr.setRequestHeader('Authorization', sig.authHeader)
+            console.log('【MinIO上传】发送数据, 大小:', fileByteArray.length, '字节')
+            xhr.send(fileByteArray.buffer)
+            return
+          } catch (e) {
+            console.warn('【MinIO上传】plus XHR失败:', e)
+          }
+        }
+
+        // 兜底：uni.request
         uni.request({
-          url: url,
-          method: 'PUT',
+          url: url, method: 'PUT',
           header: {
             'Content-Type': contentType,
             'X-Amz-Content-Sha256': fileSha256,
@@ -269,18 +246,10 @@ export function uploadImage(filePath, typeDir) {
           },
           data: fileByteArray.buffer,
           success: function (res) {
-            if (res.statusCode === 200) {
-              console.log('【MinIO上传】成功:', url)
-              resolve(url)
-            } else {
-              console.error('【MinIO上传】失败, HTTP:', res.statusCode, JSON.stringify(res.data))
-              reject(new Error('上传失败: HTTP ' + res.statusCode))
-            }
+            if (res.statusCode === 200) { resolve(url) }
+            else { reject(new Error('上传失败: HTTP ' + res.statusCode)) }
           },
-          fail: function (err) {
-            console.error('【MinIO上传】网络错误:', JSON.stringify(err))
-            reject(new Error('上传网络错误'))
-          }
+          fail: function (err) { reject(new Error('上传网络错误')) }
         })
       }).catch(function (err) { reject(err) })
     }).catch(function (err) { reject(err) })
