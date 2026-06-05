@@ -1883,9 +1883,10 @@ export default {
 				return
 			}
 
-			const warehouseName = warehouseData.warehouseName || warehouseData.name || ''
+			const warehouseCode = warehouseData.warehouseCode || warehouseData.code || ''
 			const locCode = warehouseData.locationCode || warehouseData.code || ''
-			const locationText = warehouseName + (locCode ? ' - ' + locCode : '')
+			const locationText = warehouseCode + (locCode ? ' - ' + locCode : '')
+			const psiUserId = uni.getStorageSync('userId') || '-'
 
 			// 检查是否有图片
 			if (this.currentTab === 'isbn' && this.photoList.length < 1) {
@@ -1908,6 +1909,7 @@ export default {
 					return
 				}
 				contentLines = [
+					'🆔 用户ID：' + psiUserId,
 					'📦 货区：' + locationText,
 					'📖 ISBN：' + (this.isbn || '-'),
 					'📕 书名：' + (this.bookName || '-'),
@@ -1929,6 +1931,7 @@ export default {
 					return
 				}
 				contentLines = [
+					'🆔 用户ID：' + psiUserId,
 					'📦 货区：' + locationText,
 					'📕 书名：' + (this.noIsbnBookName || '-'),
 					'✍️ 作者：' + (this.noIsbnAuthor || '-'),
