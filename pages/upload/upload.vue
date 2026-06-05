@@ -1620,7 +1620,7 @@ export default {
 			const raw = this.scanPopupRaw
 
 			if (whCode && locCode) {
-				// 格式 NS##a5-4 → 先切换到对应仓库 tab，再在搜索框输入货位号
+				// 格式 NS##a5-4 → 按仓库编码匹配仓库，切换tab，带着货位号请求后端过滤
 				const whIdx = this.popupWarehouseList.findIndex(w => {
 					const code = (w.code || '').toLowerCase()
 					const name = (w.name || '').toLowerCase()
@@ -1628,22 +1628,19 @@ export default {
 					return code === search || name === search || code.includes(search)
 				})
 				if (whIdx !== -1) {
-					// 切换到该仓库（不携带搜索参数，加载全部货位）
+					const wh = this.popupWarehouseList[whIdx]
+					// 切换到该仓库 tab
 					this.popupActiveWhIndex = whIdx
-					this.popupSelectedWh = this.popupWarehouseList[whIdx]
+					this.popupSelectedWh = wh
 					this.popupSelectedLoc = null
 					this.popupLocationSearch = ''
-					await this.loadPopupLocations(this.popupWarehouseList[whIdx].id)
-					// 将货位号填入搜索框，触发前端过滤显示
-					this.popupLocationSearch = locCode
-					// 如果过滤后只剩一条，自动选中
-					if (this.filteredLocationList.length === 1) {
-						this.popupSelectedLoc = this.filteredLocationList[0]
-						uni.showToast({ title: '已匹配 仓库' + whCode + ' 货位:' + this.filteredLocationList[0].code, icon: 'success' })
-					} else if (this.filteredLocationList.length > 1) {
-						uni.showToast({ title: '已切换到仓库' + whCode + '，找到' + this.filteredLocationList.length + '个匹配货位', icon: 'none' })
+					// 带着货位号请求后端过滤货位列表（重新请求接口）
+					await this.loadPopupLocations(wh.id, false, locCode)
+					if (this.popupLocationList.length > 0) {
+						this.popupSelectedLoc = this.popupLocationList[0]
+						uni.showToast({ title: '已匹配 仓库' + whCode + ' 货位:' + this.popupLocationList[0].code, icon: 'success' })
 					} else {
-						uni.showToast({ title: '已切换到仓库' + whCode + '，但未找到匹配货位', icon: 'none' })
+						uni.showToast({ title: '已切换到仓库' + whCode + '，但未找到货位' + locCode, icon: 'none' })
 					}
 				} else {
 					uni.showToast({ title: '未找到仓库: ' + whCode, icon: 'none' })
