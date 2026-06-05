@@ -206,8 +206,8 @@ export function uploadImage(filePath, typeDir) {
       readFileAsBase64(filePath).then(function (base64) {
         var fileBytes = base64ToBytes(base64)
         var fileByteArray = new Uint8Array(fileBytes)
-        // 计算文件内容的实际 SHA256 用于签名
-        var payloadHash = sha256(fileBytes)
+        // 使用 UNSIGNED-PAYLOAD（避免 payload sha256 计算与传输的差异）
+        var payloadHash = 'UNSIGNED-PAYLOAD'
 
         // 构建对象路径
         var now = getServerDate()
