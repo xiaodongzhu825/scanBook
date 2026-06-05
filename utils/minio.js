@@ -206,7 +206,8 @@ export function uploadImage(filePath, typeDir) {
       readFileAsBase64(filePath).then(function (base64) {
         var fileBytes = base64ToBytes(base64)
         var fileByteArray = new Uint8Array(fileBytes)
-        var fileSha256 = sha256(fileBytes)
+        // 使用 UNSIGNED-PAYLOAD 简化签名（排除sha256计算差异）
+        var payloadHash = 'UNSIGNED-PAYLOAD'
 
         // 构建对象路径
         var now = getServerDate()
@@ -221,15 +222,15 @@ export function uploadImage(filePath, typeDir) {
         var ct = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp' }
         var contentType = ct[ext] || 'image/jpeg'
 
-        var sig = buildAuthHeader(objectKey, now, contentType, fileSha256)
+        var sig = buildAuthHeader(objectKey, now, contentType, payloadHash)
         var url = CFG.protocol + '://' + CFG.endpoint + '/' + CFG.bucket + '/' + objectKey
 
         console.log('【MinIO上传】URL:', url)
         console.log('【MinIO上传】amzDate:', sig.amzDate)
         console.log('【MinIO上传】authHeader:', sig.authHeader)
         console.log('【MinIO上传】contentType:', contentType)
-        console.log('【MinIO上传】fileSha256:', fileSha256)
-        console.log('【MinIO上传】本地时间:', new Date().toISOString(), '服务器时间:', now.toISOString())
+        console.log('【MinIO上传】payloadHash:', payloadHash)
+        console.log('【MinIO上传】服务器时间:', now.toISOString())
 
         // ====== 使用 plus.net.XMLHttpRequest PUT ======
         if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
@@ -249,7 +250,7 @@ export function uploadImage(filePath, typeDir) {
             }
             xhr.open('PUT', url)
             xhr.setRequestHeader('Content-Type', contentType)
-            xhr.setRequestHeader('X-Amz-Content-Sha256', fileSha256)
+            xhr.setRequestHeader('X-Amz-Content-Sha256', payloadHash)
             xhr.setRequestHeader('X-Amz-Date', sig.amzDate)
             xhr.setRequestHeader('Authorization', sig.authHeader)
             console.log('【MinIO上传】发送数据, 大小:', fileByteArray.length, '字节')
@@ -265,7 +266,7 @@ export function uploadImage(filePath, typeDir) {
           url: url, method: 'PUT',
           header: {
             'Content-Type': contentType,
-            'X-Amz-Content-Sha256': fileSha256,
+            'X-Amz-Content-Sha256': payloadHash,
             'X-Amz-Date': sig.amzDate,
             'Authorization': sig.authHeader
           },
