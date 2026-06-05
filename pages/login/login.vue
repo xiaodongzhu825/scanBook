@@ -253,6 +253,7 @@ export default {
 					uni.setStorageSync('phoneNumber', data.phoneNumber || this.formData.account)
 					uni.setStorageSync('nickName', data.nickName || data.username || data.realname || '')
 					uni.setStorageSync('userId', data.id || data.userId || '')
+					uni.setStorageSync('aboutId', data.about_id || '')
 					uni.setStorageSync('lastSubmitTime', Date.now())
 					uni.setStorageSync('agreedPrivacy', true)
 

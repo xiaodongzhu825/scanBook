@@ -1951,7 +1951,7 @@ export default {
 				const conditionDisplay = (this.currentTab === 'isbn' ? this.conditionValue : this.noIsbnConditionValue).replace('~', '')
 
 				// 构建 form-data 参数
-				const userId = uni.getStorageSync('userId') || ''
+				const userId = uni.getStorageSync('aboutId') || ''
 				const apiData = {
 					user_id: userId,
 					warehouse_id: String(warehouseData.warehouseId || ''),
