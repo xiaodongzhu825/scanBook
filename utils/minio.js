@@ -76,7 +76,7 @@ var _timeSyncing = false
 
 /**
  * 从 MinIO 服务器同步时间
- * 通过 GET 根路径获取 Date 响应头，计算客户端与服务端的时间差
+ * 通过 PUT 请求根路径获取 Date 响应头，计算客户端与服务端的时间差
  */
 function syncServerTime() {
   return new Promise(function (resolve) {
@@ -89,7 +89,7 @@ function syncServerTime() {
     console.log('【MinIO】同步服务器时间:', url)
     uni.request({
       url: url,
-      method: 'GET',
+      method: 'PUT',
       success: function (res) {
         var serverDateStr = null
         // 尝试从多个地方取 Date 头
