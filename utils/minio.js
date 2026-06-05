@@ -81,37 +81,42 @@ var _timeSyncing = false
 function syncServerTime() {
   return new Promise(function (resolve) {
     if (_timeSyncing) {
-      // 已有同步请求在进行中，重试 500ms 后获取
       setTimeout(function () { resolve(getServerDate()) }, 500)
       return
     }
     _timeSyncing = true
     var url = CFG.protocol + '://' + CFG.endpoint + '/'
-    var XHRClass = getXHR()
-    if (XHRClass) {
-      var xhr = new XHRClass()
-      xhr.open('GET', url, true)
-      xhr.onload = function () {
-        var serverDateStr = xhr.getResponseHeader('Date')
+    console.log('【MinIO】同步服务器时间:', url)
+    uni.request({
+      url: url,
+      method: 'GET',
+      success: function (res) {
+        var serverDateStr = null
+        // 尝试从多个地方取 Date 头
+        if (res.header) {
+          serverDateStr = res.header.Date || res.header.date || res.header['Date']
+        }
+        if (res.headers) {
+          serverDateStr = serverDateStr || res.headers.Date || res.headers.date || res.headers['Date']
+        }
         if (serverDateStr) {
           var serverMs = new Date(serverDateStr).getTime()
           if (serverMs) {
             _timeOffset = serverMs - Date.now()
-            console.log('【MinIO】时间同步完成，服务器偏移:', _timeOffset, 'ms')
+            console.log('【MinIO】时间同步完成，服务器偏移:', _timeOffset, 'ms, 服务器时间:', serverDateStr)
           }
+        } else {
+          console.warn('【MinIO】未获取到Date响应头, header:', JSON.stringify(res.header || res.headers))
         }
         _timeSyncing = false
         resolve(getServerDate())
-      }
-      xhr.onerror = function () {
+      },
+      fail: function (err) {
+        console.warn('【MinIO】时间同步请求失败:', JSON.stringify(err))
         _timeSyncing = false
         resolve(new Date())
       }
-      xhr.send()
-    } else {
-      _timeSyncing = false
-      resolve(new Date())
-    }
+    })
   })
 }
 
