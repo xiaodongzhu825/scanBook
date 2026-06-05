@@ -191,7 +191,7 @@ export function psiLogin(username, password) {
 				console.log('【PSI登录】响应状态码:', res.statusCode)
 				console.log('【PSI登录】响应数据:', JSON.stringify(res.data))
 				if (res.statusCode === 200 && res.data) {
-					if (res.data.code === 0) {
+					if (res.data.code === 200) {
 						resolve(res.data.data || res.data)
 					} else {
 						reject(new Error(res.data.msg || res.data.message || '登录失败'))
