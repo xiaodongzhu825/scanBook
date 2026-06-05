@@ -34,9 +34,8 @@ function hexToBytes(hex) {
 function bytesToHex(bytes) {
   var s = ''
   for (var i = 0; i < bytes.length; i++) {
-    var b = bytes[i]
-    s += '0123456789abcdef'[(b >> 4) & 0xf]
-    s += '0123456789abcdef'[b & 0xf]
+    s += '0123456789abcdef'[(bytes[i] >> 4) & 0xf]
+    s += '0123456789abcdef'[bytes[i] & 0xf]
   }
   return s
 }
@@ -78,75 +77,36 @@ function buildAuthHeader(objectKey, date, contentType, contentSha256) {
   return { authHeader: authHeader, amzDate: amzDate }
 }
 
-// ====== 文件读取 ======
+// ====== 文件读取（直接读 ArrayBuffer，避免 base64 编解码） ======
 
-function readFileAsBase64(filePath) {
+function readFileAsArrayBuffer(filePath) {
   return new Promise(function (resolve, reject) {
-    // 方式1: plus.io FileReader（HBuilder App 环境，最可靠）
     if (typeof plus !== 'undefined' && plus.io && plus.io.FileReader) {
       plus.io.resolveLocalFileSystemURL(filePath, function (entry) {
         entry.file(function (file) {
           var reader = new plus.io.FileReader()
           reader.onloadend = function (e) {
-            var data = e.target.result
-            if (data.indexOf(',') > -1) data = data.split(',')[1]
-            resolve(data)
+            resolve(e.target.result)
           }
           reader.onerror = function () { reject(new Error('FileReader失败')) }
-          reader.readAsDataURL(file)
+          reader.readAsArrayBuffer(file)
         }, function () { reject(new Error('获取文件对象失败')) })
       }, function (err) {
-        console.warn('resolveLocalFileSystemURL失败:', JSON.stringify(err))
-        // 回退到 getFileSystemManager
-        tryFSManager(filePath, resolve, reject)
+        reject(new Error('resolveLocalFileSystemURL失败: ' + JSON.stringify(err)))
       })
       return
     }
-    // 方式2: uni.getFileSystemManager（H5/小程序）
-    tryFSManager(filePath, resolve, reject)
+    reject(new Error('plus.io 不可用'))
   })
 }
 
-function tryFSManager(filePath, resolve, reject) {
-  try {
-    var fs = uni.getFileSystemManager()
-    if (fs && fs.readFile) {
-      fs.readFile({ filePath: filePath, encoding: 'base64', success: function (res) { resolve(res.data) }, fail: function (e) { reject(new Error('readFile失败: ' + JSON.stringify(e))) } })
-    } else {
-      reject(new Error('不支持文件读取'))
-    }
-  } catch (e) {
-    reject(new Error('不支持文件读取: ' + e.message))
-  }
-}
-
-function base64ToBytes(base64) {
-  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-  base64 = base64.replace(/=+$/, '')
-  var bytes = []
-  for (var i = 0; i < base64.length; i += 4) {
-    var a = chars.indexOf(base64[i])
-    var b = chars.indexOf(base64[i + 1])
-    var c = chars.indexOf(base64[i + 2])
-    var d = chars.indexOf(base64[i + 3])
-    if (a >= 0 && b >= 0) {
-      bytes.push((a << 2) | (b >> 4))
-      if (c >= 0) bytes.push(((b & 0xf) << 4) | (c >> 2))
-      if (d >= 0) bytes.push(((c & 3) << 6) | d)
-    }
-  }
-  return bytes
-}
-
-// ====== 时间同步（用 plus.net.XMLHttpRequest GET，直接读 Date 响应头） ======
+// ====== 时间同步 ======
 
 var _cachedTimeOffset = null
 
 function syncServerTime() {
   return new Promise(function (resolve) {
     console.log('【MinIO时间同步】开始...')
-
-    // 尝试用 plus.net.XMLHttpRequest GET 根路径获取 Date 头
     if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
       try {
         var xhr = new plus.net.XMLHttpRequest()
@@ -166,7 +126,7 @@ function syncServerTime() {
                 var serverMs = Date.parse(dateStr)
                 if (!isNaN(serverMs)) {
                   _cachedTimeOffset = serverMs - Date.now()
-                  console.log('【MinIO时间同步】成功! 服务器ms:', serverMs, '本地ms:', Date.now(), '偏移:', _cachedTimeOffset, 'ms')
+                  console.log('【MinIO时间同步】成功! 偏移:', _cachedTimeOffset, 'ms')
                   resolve(new Date(Date.now() + _cachedTimeOffset))
                   return
                 }
@@ -184,8 +144,6 @@ function syncServerTime() {
         console.warn('【MinIO时间同步】创建XHR失败:', e)
       }
     }
-
-    // 兜底
     resolve(new Date())
   })
 }
@@ -203,13 +161,9 @@ export function uploadImage(filePath, typeDir) {
   if (typeDir === undefined) typeDir = 'Isbn'
   return new Promise(function (resolve, reject) {
     syncServerTime().then(function () {
-      readFileAsBase64(filePath).then(function (base64) {
-        var fileBytes = base64ToBytes(base64)
-        var fileByteArray = new Uint8Array(fileBytes)
-        // 使用 UNSIGNED-PAYLOAD（避免 payload sha256 计算与传输的差异）
+      readFileAsArrayBuffer(filePath).then(function (arrayBuffer) {
         var payloadHash = 'UNSIGNED-PAYLOAD'
 
-        // 构建对象路径
         var now = getServerDate()
         var datePath = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
         var ext = (filePath.match(/\.(\w+)$/) || [])[1] || 'jpg'
@@ -226,24 +180,22 @@ export function uploadImage(filePath, typeDir) {
         var url = CFG.protocol + '://' + CFG.endpoint + '/' + CFG.bucket + '/' + objectKey
 
         console.log('【MinIO上传】URL:', url)
-        console.log('【MinIO上传】amzDate:', sig.amzDate)
-        console.log('【MinIO上传】authHeader:', sig.authHeader)
         console.log('【MinIO上传】contentType:', contentType)
-        console.log('【MinIO上传】payloadHash:', payloadHash)
+        console.log('【MinIO上传】bufferSize:', arrayBuffer.byteLength)
         console.log('【MinIO上传】服务器时间:', now.toISOString())
 
-        // ====== 使用 plus.net.XMLHttpRequest PUT ======
+        // 使用 plus.net.XMLHttpRequest PUT
         if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
           try {
             var xhr = new plus.net.XMLHttpRequest()
             xhr.onreadystatechange = function () {
               if (xhr.readyState === 4) {
-                console.log('【MinIO上传】onreadystatechange status:', xhr.status)
+                console.log('【MinIO上传】status:', xhr.status)
                 if (xhr.status === 200) {
                   console.log('【MinIO上传】成功:', url)
                   resolve(url)
                 } else {
-                  console.error('【MinIO上传】失败, HTTP:', xhr.status, xhr.responseText || xhr.response)
+                  console.error('【MinIO上传】失败, HTTP:', xhr.status, (xhr.responseText || xhr.response || '').substring(0, 200))
                   reject(new Error('上传失败: HTTP ' + xhr.status))
                 }
               }
@@ -253,30 +205,15 @@ export function uploadImage(filePath, typeDir) {
             xhr.setRequestHeader('X-Amz-Content-Sha256', payloadHash)
             xhr.setRequestHeader('X-Amz-Date', sig.amzDate)
             xhr.setRequestHeader('Authorization', sig.authHeader)
-            console.log('【MinIO上传】发送数据, 大小:', fileByteArray.length, '字节')
-            xhr.send(fileByteArray.buffer)
+            console.log('【MinIO上传】发送数据, 大小:', arrayBuffer.byteLength, '字节')
+            xhr.send(arrayBuffer)
             return
           } catch (e) {
             console.warn('【MinIO上传】plus XHR失败:', e)
           }
         }
 
-        // 兜底：uni.request
-        uni.request({
-          url: url, method: 'PUT',
-          header: {
-            'Content-Type': contentType,
-            'X-Amz-Content-Sha256': payloadHash,
-            'X-Amz-Date': sig.amzDate,
-            'Authorization': sig.authHeader
-          },
-          data: fileByteArray.buffer,
-          success: function (res) {
-            if (res.statusCode === 200) { resolve(url) }
-            else { reject(new Error('上传失败: HTTP ' + res.statusCode)) }
-          },
-          fail: function (err) { reject(new Error('上传网络错误')) }
-        })
+        reject(new Error('当前环境不支持上传'))
       }).catch(function (err) { reject(err) })
     }).catch(function (err) { reject(err) })
   })

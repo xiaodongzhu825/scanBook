@@ -1963,7 +1963,7 @@ export default {
 			try {
 				// 确定图片来源
 				const photoList = this.currentTab === 'isbn' ? this.photoList : this.noIsbnPhotoList
-				const typeDir = this.currentTab === 'isbn' ? 'Isbn' : 'NoIsbn'
+				const typeDir = this.currentTab === 'isbn' ? (this.isbn || 'UnknownIsbn') : this.noIsbnIsbn || this.noIsbnUnifyIsbn || 'NoIsbn'
 
 				// 上传图片到 MinIO
 				const imageUrls = await uploadImages(photoList, typeDir)
