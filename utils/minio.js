@@ -5,6 +5,19 @@
 
 import sha256 from 'js-sha256'
 
+// ====== Polyfill: atob (某些 App 环境不支持) ======
+if (typeof atob === 'undefined') {
+  var atob = function (input) {
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+    var output = ''
+    input = input.replace(/=+$/, '')
+    for (var bc = 0, bs = 0, buffer, i = 0; buffer = input.charAt(i++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer, bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
+      buffer = chars.indexOf(buffer)
+    }
+    return output
+  }
+}
+
 // ====== MinIO 配置 ======
 const CFG = {
   endpoint: 'shxy.image.yushutx.com',
@@ -103,6 +116,82 @@ function buildAuthHeader(objectKey, date) {
   return { authHeader, amzDate, host }
 }
 
+// ====== 平台兼容工具 ======
+
+/**
+ * 获取当前平台可用的 XHR 构造函数
+ * HBuilder App: plus.net.XMLHttpRequest
+ * H5 / 小程序: XMLHttpRequest
+ */
+function getXHR() {
+  if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
+    return plus.net.XMLHttpRequest
+  }
+  if (typeof XMLHttpRequest !== 'undefined') {
+    return XMLHttpRequest
+  }
+  return null
+}
+
+/**
+ * 在当前平台发送 PUT 二进制请求到 MinIO
+ */
+function minioPut(url, arrayBuffer, contentType, authHeader, amzDate) {
+  return new Promise(function (resolve, reject) {
+    var XHRClass = getXHR()
+    if (XHRClass) {
+      var xhr = new XHRClass()
+      xhr.open('PUT', url, true)
+      xhr.setRequestHeader('Authorization', authHeader)
+      xhr.setRequestHeader('x-amz-content-sha256', 'UNSIGNED-PAYLOAD')
+      xhr.setRequestHeader('x-amz-date', amzDate)
+      xhr.setRequestHeader('Content-Type', contentType)
+
+      xhr.onload = function () {
+        if (xhr.status === 200) {
+          console.log('【MinIO上传】成功:', url)
+          resolve(url)
+        } else {
+          console.error('【MinIO上传】失败, HTTP:', xhr.status, xhr.responseText || xhr.response)
+          reject(new Error('上传失败: HTTP ' + xhr.status))
+        }
+      }
+      xhr.onerror = function () {
+        console.error('【MinIO上传】网络错误')
+        reject(new Error('上传网络错误'))
+      }
+      xhr.ontimeout = function () {
+        reject(new Error('上传超时'))
+      }
+      xhr.timeout = 120000
+      xhr.send(arrayBuffer)
+    } else {
+      // 无可用 XHR → 使用 uni.request + base64 body
+      uni.request({
+        url: url,
+        method: 'PUT',
+        header: {
+          'Authorization': authHeader,
+          'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
+          'x-amz-date': amzDate,
+          'Content-Type': contentType
+        },
+        data: arrayBuffer,
+        success: function (res) {
+          if (res.statusCode === 200) {
+            resolve(url)
+          } else {
+            reject(new Error('上传失败: HTTP ' + res.statusCode))
+          }
+        },
+        fail: function (err) {
+          reject(new Error('上传网络错误: ' + JSON.stringify(err)))
+        }
+      })
+    }
+  })
+}
+
 // ====== 文件读取（兼容 uniapp 多端） ======
 
 /**
@@ -172,19 +261,32 @@ function tryGetFileSystemManager(filePath, resolve, reject) {
  */
 function readViaXHR(filePath, resolve, reject) {
   try {
-    const xhr = new XMLHttpRequest()
+    var XHRClass = getXHR()
+    if (!XHRClass) {
+      reject(new Error('当前环境不支持XHR'))
+      return
+    }
+    var xhr = new XHRClass()
     xhr.open('GET', filePath, true)
-    xhr.responseType = 'blob'
-    xhr.onload = function () {
-      const reader = new FileReader()
-      reader.onload = function () {
-        const base64 = reader.result.split(',')[1] || ''
-        resolve(base64)
+    if (typeof Blob !== 'undefined' && typeof FileReader !== 'undefined') {
+      xhr.responseType = 'blob'
+      xhr.onload = function () {
+        var reader = new FileReader()
+        reader.onload = function () {
+          var base64 = reader.result.split(',')[1] || ''
+          resolve(base64)
+        }
+        reader.onerror = function () {
+          reject(new Error('FileReader 读取失败'))
+        }
+        reader.readAsDataURL(xhr.response)
       }
-      reader.onerror = function () {
-        reject(new Error('FileReader 读取失败'))
+    } else {
+      // 无 FileReader → 读为 text（App com.6 起支持获取本地文件 base64）
+      xhr.responseType = 'text'
+      xhr.onload = function () {
+        resolve(xhr.responseText || '')
       }
-      reader.readAsDataURL(xhr.response)
     }
     xhr.onerror = function () {
       reject(new Error('XHR 读取文件失败'))
@@ -271,33 +373,12 @@ export function uploadImage(filePath, typeDir = 'Isbn') {
         console.log('【MinIO上传】contentType:', contentType)
         console.log('【MinIO上传】contentLength:', arrayBuffer.byteLength)
 
-        // 通过 XMLHttpRequest 发送 PUT
-        const xhr = new XMLHttpRequest()
-        xhr.open('PUT', url, true)
-        xhr.setRequestHeader('Authorization', authHeader)
-        xhr.setRequestHeader('x-amz-content-sha256', 'UNSIGNED-PAYLOAD')
-        xhr.setRequestHeader('x-amz-date', amzDate)
-        xhr.setRequestHeader('Content-Type', contentType)
-
-        xhr.onload = function () {
-          if (xhr.status === 200) {
-            console.log('【MinIO上传】成功:', url)
-            resolve(url)
-          } else {
-            console.error('【MinIO上传】失败, HTTP:', xhr.status, xhr.responseText)
-            reject(new Error('上传失败: HTTP ' + xhr.status))
-          }
-        }
-        xhr.onerror = function () {
-          console.error('【MinIO上传】网络错误')
-          reject(new Error('上传网络错误'))
-        }
-        xhr.ontimeout = function () {
-          reject(new Error('上传超时'))
-        }
-        xhr.timeout = 120000
-
-        xhr.send(arrayBuffer)
+        // PUT 到 MinIO
+        minioPut(url, arrayBuffer, contentType, authHeader, amzDate).then(function (resultUrl) {
+          resolve(resultUrl)
+        }).catch(function (err) {
+          reject(err)
+        })
       })
       .catch(function (err) {
         reject(err)
