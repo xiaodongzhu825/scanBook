@@ -2051,6 +2051,7 @@ export default {
 					this.publisher = ''
 					this.fixPrice = ''
 					this.printTime = ''
+					this.productList = []
 				} else {
 					this.noIsbnPhotoList = []
 					this.noIsbnBookName = ''
@@ -2062,6 +2063,7 @@ export default {
 					this.noIsbnIsbn = ''
 					this.noIsbnUnifyIsbn = ''
 					this.noIsbnPrintTime = ''
+					this.noIsbnProductList = []
 				}
 			} catch (e) {
 				uni.hideLoading()
