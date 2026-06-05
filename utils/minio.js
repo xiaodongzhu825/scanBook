@@ -127,7 +127,7 @@ function getServerDate() {
 /**
  * 为 PUT 请求构建 Authorization 签名头
  */
-function buildAuthHeader(objectKey, date) {
+function buildAuthHeader(objectKey, date, contentType) {
   const dateStr = date.getFullYear() + pad(date.getMonth() + 1) + pad(date.getDate())
   const amzDate = dateStr + 'T' + pad(date.getHours()) + pad(date.getMinutes()) + pad(date.getSeconds()) + 'Z'
 
@@ -135,6 +135,7 @@ function buildAuthHeader(objectKey, date) {
   const canonicalUri = '/' + CFG.bucket + '/' + objectKey
 
   const signedHeadersMap = {
+    'content-type': contentType || 'image/jpeg',
     host: host,
     'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
     'x-amz-date': amzDate
@@ -419,7 +420,7 @@ export function uploadImage(filePath, typeDir = 'Isbn') {
           const contentType = getContentType(ext)
 
           // 构建 AWS V4 签名
-          const { authHeader, amzDate, host } = buildAuthHeader(objectKey, now)
+          const { authHeader, amzDate, host } = buildAuthHeader(objectKey, now, contentType)
 
           // PUT URL
           const url = CFG.protocol + '://' + host + '/' + CFG.bucket + '/' + objectKey
