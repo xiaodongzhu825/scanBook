@@ -149,6 +149,7 @@
 </template>
 
 <script>
+import { psiLogin } from '@/utils/api.js'
 export default {
 	data() {
 		return {
@@ -218,7 +219,7 @@ export default {
 		},
 
 		// 登录处理
-		handleLogin() {
+		async handleLogin() {
 			if (!this.canLogin) {
 				uni.showToast({
 					title: '请填写完整信息并同意隐私协议',
@@ -239,70 +240,49 @@ export default {
 				mask: true
 			})
 
-			// 构建登录参数（form-data格式）
-			const loginData = {
-				clientId: 'cec96a240989d1c6bcd55f86fca702b7',
-				phoneNumber: this.formData.account,
-				password: this.formData.password
-			}
+			// 调用PSI系统登录接口
+			try {
+				const data = await psiLogin(this.formData.account, this.formData.password)
+				uni.hideLoading()
 
-			// 调用登录API
-			uni.request({
-				url: 'https://api.buzhiyushu.cn/auth/interFaceLogin',
-				method: 'POST',
-				header: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-					'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg=='
-				},
-				data: loginData,
-				success: (res) => {
-					uni.hideLoading()
-					const response = res.data
+				// 兼容多种响应格式：{ token }, { access_token }, 或直接返回字符串
+				const token = data.token || data.access_token || (typeof data === 'string' ? data : '')
+				if (token) {
+					// 登录成功，保存数据
+					uni.setStorageSync('token', token)
+					uni.setStorageSync('phoneNumber', data.phoneNumber || this.formData.account)
+					uni.setStorageSync('nickName', data.nickName || data.username || data.realname || '')
+					uni.setStorageSync('userId', data.id || data.userId || '')
+					uni.setStorageSync('lastSubmitTime', Date.now())
+					uni.setStorageSync('agreedPrivacy', true)
 
-					// 新接口返回结构：{ code: 200, msg: "操作成功", data: { access_token, userId, ... } }
-					if (response && response.code === 200 && response.data && response.data.access_token) {
-						const data = response.data
-						// 登录成功，保存数据
-						uni.setStorageSync('token', data.access_token)
-						uni.setStorageSync('openId', data.openid || '')
-						uni.setStorageSync('userId', data.userId || '')
-						uni.setStorageSync('phoneNumber', data.phoneNumber || this.formData.account)
-						uni.setStorageSync('nickName', data.nickName || '')
-						uni.setStorageSync('lastSubmitTime', Date.now())
-						uni.setStorageSync('agreedPrivacy', true)
+					uni.showToast({
+						title: '登录成功',
+						icon: 'success'
+					})
 
-						// 调用商户记录接口
-						if (data.userId) {
-							uni.request({
-								url: `https://go.order.service.buzhiyushu.cn/api/user/insertRecbusinessByUserId?userId=${data.userId}&sort=1`,
-								method: 'GET'
-							})
-						}
-
-						uni.showToast({
-							title: '登录成功',
-							icon: 'success'
+					// 跳转到功能入口页面
+					setTimeout(() => {
+						uni.redirectTo({
+							url: '/pages/entry/entry'
 						})
-
-						// 跳转到功能入口页面
-						setTimeout(() => {
-							uni.redirectTo({
-								url: '/pages/entry/entry'
-							})
-						}, 1500)
-					} else {
-						uni.showToast({
-							title: response.msg || response.message || '登录失败，请检查账号密码',
-							icon: 'none',
-							duration: 3000
-						})
-					}
-				},
-				fail: () => {
-					uni.hideLoading()
-					uni.showToast({ title: '网络请求失败', icon: 'none' })
+					}, 1500)
+				} else {
+					uni.showToast({
+						title: data.msg || data.message || '登录失败，请检查账号密码',
+						icon: 'none',
+						duration: 3000
+					})
 				}
-			})
+			} catch (e) {
+				uni.hideLoading()
+				const errMsg = e.message || String(e)
+				uni.showToast({
+					title: errMsg,
+					icon: 'none',
+					duration: 3000
+				})
+			}
 		},
 
 		// 保存账号密码到本地

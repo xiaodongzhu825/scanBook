@@ -141,8 +141,72 @@ function generateSimpleSignedUrl(baseUrl, params = {}) {
  */
 function getAuthToken() {
 	const token = uni.getStorageSync('token')
-	console.log('【getAuthToken】读取到token:', token ? (token.substring(0, 30) + '...长度=' + token.length) : '(空)')
 	return token || ''
+}
+
+/**
+ * PSI系统登录（role:255管理员登录）
+ * 使用PSI签名机制，通过multipart/form-data提交到PSI登录接口
+ */
+export function psiLogin(username, password) {
+	const timestamp = Math.floor(Date.now() / 1000).toString()
+	const params = {
+		about_id: '0',
+		app_key: APP_KEY,
+		client_id: CLIENT_ID,
+		password: password,
+		sign_method: SIGN_METHOD,
+		timestamp: timestamp,
+		type: '1',
+		username: username
+	}
+
+	// 计算签名
+	const sign = calculateSign(params)
+
+	// 构建multipart/form-data body（按key排序与签名一致）
+	const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2, 14)
+	let body = ''
+	const keys = Object.keys(params)
+	sortKeys(keys)
+	for (const key of keys) {
+		body += '--' + boundary + '\r\n'
+		body += 'Content-Disposition: form-data; name="' + key + '"\r\n\r\n'
+		body += params[key] + '\r\n'
+	}
+	body += '--' + boundary + '\r\n'
+	body += 'Content-Disposition: form-data; name="sign"\r\n\r\n'
+	body += sign + '\r\n'
+	body += '--' + boundary + '--'
+
+	return new Promise((resolve, reject) => {
+		uni.request({
+			url: BASE_URL + '/api/login/255',
+			method: 'POST',
+			header: {
+				'Content-Type': 'multipart/form-data; boundary=' + boundary
+			},
+			data: body,
+			success: (res) => {
+				console.log('【PSI登录】响应状态码:', res.statusCode)
+				console.log('【PSI登录】响应数据:', JSON.stringify(res.data))
+				if (res.statusCode === 200 && res.data) {
+					if (res.data.code === 0) {
+						resolve(res.data.data || res.data)
+					} else {
+						reject(new Error(res.data.msg || res.data.message || '登录失败'))
+					}
+				} else {
+					const errMsg = (res.data && (res.data.msg || res.data.message || res.data.error)) || ('请求失败: ' + res.statusCode)
+					reject(new Error(errMsg))
+				}
+			},
+			fail: (err) => {
+				console.error('【PSI登录】请求失败:', JSON.stringify(err))
+				reject(new Error('网络请求失败'))
+			}
+		})
+	})
 }
 
 /**
@@ -268,6 +332,7 @@ export function searchBookByIsbn(isbn) {
 export default {
 	getWarehouseList,
 	getLocationList,
+	psiLogin,
 	searchBookByIsbn,
 	generateSignedUrl
 }
