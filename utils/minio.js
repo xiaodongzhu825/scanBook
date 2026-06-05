@@ -177,13 +177,13 @@ export function uploadImage(filePath, typeDir) {
   return new Promise(function (resolve, reject) {
     syncServerTime().then(function () {
       readFileAsBase64(filePath).then(function (base64) {
-        // base64 → ArrayBuffer → Blob（Blob 是 App XHR 最可靠的二进制传输方式）
+        // base64 → ArrayBuffer
         var binaryStr = atob(base64)
         var bytes = new Uint8Array(binaryStr.length)
         for (var i = 0; i < binaryStr.length; i++) {
           bytes[i] = binaryStr.charCodeAt(i)
         }
-        var blob = new Blob([bytes.buffer], { type: 'application/octet-stream' })
+        var arrayBuffer = bytes.buffer
         var payloadHash = 'UNSIGNED-PAYLOAD'
 
         var now = getServerDate()
@@ -203,39 +203,35 @@ export function uploadImage(filePath, typeDir) {
 
         console.log('【MinIO上传】URL:', url)
         console.log('【MinIO上传】contentType:', contentType)
-        console.log('【MinIO上传】dataSize:', blob.size, '字节')
+        console.log('【MinIO上传】dataSize:', arrayBuffer.byteLength, '字节')
         console.log('【MinIO上传】服务器时间:', now.toISOString())
 
-        // 使用 plus.net.XMLHttpRequest PUT（发送 Blob）
-        if (typeof plus !== 'undefined' && plus.net && plus.net.XMLHttpRequest) {
-          try {
-            var xhr = new plus.net.XMLHttpRequest()
-            xhr.onreadystatechange = function () {
-              if (xhr.readyState === 4) {
-                console.log('【MinIO上传】status:', xhr.status)
-                if (xhr.status === 200) {
-                  console.log('【MinIO上传】成功:', url)
-                  resolve(url)
-                } else {
-                  console.error('【MinIO上传】失败, HTTP:', xhr.status, (xhr.responseText || xhr.response || '').substring(0, 200))
-                  reject(new Error('上传失败: HTTP ' + xhr.status))
-                }
-              }
+        // 使用 uni.request PUT（App 环境中 ArrayBuffer 传输最可靠）
+        uni.request({
+          url: url,
+          method: 'PUT',
+          header: {
+            'Content-Type': contentType,
+            'X-Amz-Content-Sha256': payloadHash,
+            'X-Amz-Date': sig.amzDate,
+            'Authorization': sig.authHeader
+          },
+          data: arrayBuffer,
+          success: function (res) {
+            console.log('【MinIO上传】status:', res.statusCode)
+            if (res.statusCode === 200) {
+              console.log('【MinIO上传】成功:', url)
+              resolve(url)
+            } else {
+              console.error('【MinIO上传】失败, HTTP:', res.statusCode, JSON.stringify(res.data || '').substring(0, 200))
+              reject(new Error('上传失败: HTTP ' + res.statusCode))
             }
-            xhr.open('PUT', url)
-            xhr.setRequestHeader('Content-Type', contentType)
-            xhr.setRequestHeader('X-Amz-Content-Sha256', payloadHash)
-            xhr.setRequestHeader('X-Amz-Date', sig.amzDate)
-            xhr.setRequestHeader('Authorization', sig.authHeader)
-            console.log('【MinIO上传】发送数据...')
-            xhr.send(blob)
-            return
-          } catch (e) {
-            console.warn('【MinIO上传】plus XHR失败:', e)
+          },
+          fail: function (err) {
+            console.error('【MinIO上传】uni.request失败:', JSON.stringify(err))
+            reject(new Error('上传网络错误'))
           }
-        }
-
-        reject(new Error('当前环境不支持上传'))
+        })
       }).catch(function (err) { reject(err) })
     }).catch(function (err) { reject(err) })
   })
