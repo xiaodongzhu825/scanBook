@@ -82,17 +82,42 @@ function buildAuthHeader(objectKey, date, contentType, contentSha256) {
 
 function readFileAsBase64(filePath) {
   return new Promise(function (resolve, reject) {
-    try {
-      var fs = uni.getFileSystemManager()
-      if (fs && fs.readFile) {
-        fs.readFile({ filePath: filePath, encoding: 'base64', success: function (res) { resolve(res.data) }, fail: function () { reject(new Error('readFile失败')) } })
-      } else {
-        reject(new Error('不支持文件读取'))
-      }
-    } catch (e) {
-      reject(new Error('读取文件异常: ' + e.message))
+    // 方式1: plus.io FileReader（HBuilder App 环境，最可靠）
+    if (typeof plus !== 'undefined' && plus.io && plus.io.FileReader) {
+      plus.io.resolveLocalFileSystemURL(filePath, function (entry) {
+        entry.file(function (file) {
+          var reader = new plus.io.FileReader()
+          reader.onloadend = function (e) {
+            var data = e.target.result
+            if (data.indexOf(',') > -1) data = data.split(',')[1]
+            resolve(data)
+          }
+          reader.onerror = function () { reject(new Error('FileReader失败')) }
+          reader.readAsDataURL(file)
+        }, function () { reject(new Error('获取文件对象失败')) })
+      }, function (err) {
+        console.warn('resolveLocalFileSystemURL失败:', JSON.stringify(err))
+        // 回退到 getFileSystemManager
+        tryFSManager(filePath, resolve, reject)
+      })
+      return
     }
+    // 方式2: uni.getFileSystemManager（H5/小程序）
+    tryFSManager(filePath, resolve, reject)
   })
+}
+
+function tryFSManager(filePath, resolve, reject) {
+  try {
+    var fs = uni.getFileSystemManager()
+    if (fs && fs.readFile) {
+      fs.readFile({ filePath: filePath, encoding: 'base64', success: function (res) { resolve(res.data) }, fail: function (e) { reject(new Error('readFile失败: ' + JSON.stringify(e))) } })
+    } else {
+      reject(new Error('不支持文件读取'))
+    }
+  } catch (e) {
+    reject(new Error('不支持文件读取: ' + e.message))
+  }
 }
 
 function base64ToBytes(base64) {
