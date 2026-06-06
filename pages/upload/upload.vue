@@ -2332,7 +2332,15 @@ export default {
 							} else {
 								console.warn('【syncBook】pushToShop返回缺少warehouse_id/product_id,跳过releaseGoodsAuto')
 							}
+						} else if (pushRespData && pushRespData.msg) {
+							// code 非 200，显示错误信息
+							uni.showToast({ title: pushRespData.msg, icon: 'none', duration: 3000 })
 						}
+					} else {
+						// HTTP 非 200
+						var errMsg = 'pushToShop请求失败: HTTP ' + pushRes.statusCode
+						console.error('【syncBook】' + errMsg)
+						uni.showToast({ title: errMsg, icon: 'none', duration: 3000 })
 					}
 				} catch (ePush) {
 					console.warn('【syncBook】pushToShop失败:', ePush)
