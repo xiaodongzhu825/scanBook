@@ -843,7 +843,7 @@
 </template>
 
 <script>
-import { getWarehouseList, getLocationList, searchBookByIsbn } from '@/utils/api.js'
+import { getWarehouseList, getLocationList, searchBookByIsbn, calculateSign } from '@/utils/api.js'
 import { login as kongfzLogin, searchProducts, searchFacet } from '@/utils/kongfz.js'
 import { uploadImages } from '@/utils/minio.js'
 
@@ -2132,7 +2132,8 @@ export default {
 			try {
 				const token = uni.getStorageSync('token') || ''
 
-				// 构建参数
+				// 构建参数（用于计算签名）
+				var timestamp = String(Math.floor(Date.now() / 1000))
 				const params = {
 					app_key: 'psi',
 					client_id: 'psi',
@@ -2150,8 +2151,14 @@ export default {
 					page_count: '0',
 					word_count: this.noIsbnWordCount || '',
 					book_format: '',
-					live_image: imageUrls.join(',')
+					live_image: imageUrls.join(','),
+					timestamp: timestamp,
+					sign_method: 'md5'
 				}
+
+				// 计算签名（与仓库列表一致的签名算法）
+				var sign = calculateSign(params)
+				params.sign = sign
 
 				const apiUrl = 'https://psi.api.buzhiyushu.cn/api/syncBook'
 				console.log('【syncBook】请求地址:', apiUrl)

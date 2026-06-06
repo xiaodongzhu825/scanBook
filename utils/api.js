@@ -330,6 +330,7 @@ export function searchBookByIsbn(isbn) {
 }
 
 export default {
+	calculateSign,
 	getWarehouseList,
 	getLocationList,
 	psiLogin,
