@@ -2147,35 +2147,47 @@ export default {
 					}
 				}
 
-				const params = {
-					app_key: 'psi',
-					client_id: 'psi',
-					fid: '0',
-					type: '4',
-					isbn: this.noIsbnIsbn || this.noIsbnUnifyIsbn || '',
-					f_isbn: '0',
-					book_name: this.noIsbnBookName || '',
-					f_book_name: '',
-					author: this.noIsbnAuthor || '',
-					publisher: this.noIsbnPublisher || '',
-					publication_time: pubTimestamp,
-					binding_layout: '',
+				// 签名用参数：live_image[] 用逗号拼接
+				const signParams = {
+					app_key: 'psi', client_id: 'psi', fid: '0', type: '4',
+					isbn: this.noIsbnIsbn || this.noIsbnUnifyIsbn || '', f_isbn: '0',
+					book_name: this.noIsbnBookName || '', f_book_name: '',
+					author: this.noIsbnAuthor || '', publisher: this.noIsbnPublisher || '',
+					publication_time: pubTimestamp, binding_layout: '',
 					fix_price: this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '',
-					page_count: '0',
-					word_count: this.noIsbnWordCount || '',
-					book_format: '',
+					page_count: '0', word_count: this.noIsbnWordCount || '', book_format: '',
 					'live_image[]': imageUrls.join(','),
-					timestamp: timestamp,
-					sign_method: 'md5'
+					timestamp: timestamp, sign_method: 'md5'
 				}
+				var sign = calculateSign(signParams)
 
-				// 计算签名（与仓库列表一致的签名算法）
-				var sign = calculateSign(params)
-				params.sign = sign
+				// 手动构建请求体：live_image[] 重复 key 出现，服务端收到后自动逗号拼接
+				var b = []
+				b.push('app_key=psi&client_id=psi&fid=0&type=4')
+				b.push('isbn=' + encodeURIComponent(this.noIsbnIsbn || this.noIsbnUnifyIsbn || ''))
+				b.push('f_isbn=0')
+				b.push('book_name=' + encodeURIComponent(this.noIsbnBookName || ''))
+				b.push('f_book_name=')
+				b.push('author=' + encodeURIComponent(this.noIsbnAuthor || ''))
+				b.push('publisher=' + encodeURIComponent(this.noIsbnPublisher || ''))
+				b.push('publication_time=' + pubTimestamp)
+				b.push('binding_layout=')
+				b.push('fix_price=' + (this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '0'))
+				b.push('page_count=0')
+				b.push('word_count=' + (this.noIsbnWordCount || '0'))
+				b.push('book_format=0')
+				for (var ii = 0; ii < imageUrls.length; ii++) {
+					b.push('live_image[]=' + encodeURIComponent(imageUrls[ii]))
+				}
+				b.push('timestamp=' + timestamp)
+				b.push('sign_method=md5')
+				b.push('sign=' + sign)
+				var bodyStr = b.join('&')
 
 				const apiUrl = 'https://psi.api.buzhiyushu.cn/api/syncBook'
 				console.log('【syncBook】请求地址:', apiUrl)
-				console.log('【syncBook】请求参数:', params)
+				console.log('【syncBook】签名参数:', signParams)
+				console.log('【syncBook】请求body:', bodyStr)
 
 				const res = await new Promise(function (resolve, reject) {
 					uni.request({
@@ -2185,7 +2197,7 @@ export default {
 							'Content-Type': 'application/x-www-form-urlencoded',
 							'Authorization': 'Bearer ' + token
 						},
-						data: params,
+						data: bodyStr,
 						success: function (r) { resolve(r) },
 						fail: function (e) { reject(e) }
 					})
@@ -2218,7 +2230,7 @@ export default {
 					type: this.currentTab,
 					apiUrl: apiUrl,
 					apiResponse: res.data,
-					data: params
+					data: signParams
 				})
 				uni.setStorageSync('uploadHistory', uploadHistory.slice(0, 100))
 
