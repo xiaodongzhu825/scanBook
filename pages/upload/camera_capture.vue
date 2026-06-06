@@ -1,19 +1,24 @@
 <template>
 	<view class="cc-page">
 		<!-- 摄像头预览区 -->
-		<view class="cc-camera-wrap">
+		<view class="cc-camera-wrap" v-if="useNativeCamera">
 			<camera id="ccCamera" class="cc-camera" device-position="back" flash="off" @error="onCameraError" @initdone="onCameraInit"></camera>
 			<view class="cc-camera-hint" v-if="!ctxReady">
 				<text class="cc-hint-text">摄像头初始化中...</text>
 			</view>
 		</view>
+		<view class="cc-fallback" v-else>
+			<text class="cc-fallback-icon">📷</text>
+			<text class="cc-fallback-text">点击拍照按钮调用系统相机</text>
+		</view>
 
 		<!-- 已拍照九宫格 -->
 		<view class="cc-thumb-bar">
+			<view class="cc-thumb-count" v-if="capturedList.length > 0">已拍 {{ capturedList.length }} 张</view>
 			<view class="cc-thumb-list">
 				<view class="cc-thumb-item" v-for="(img, idx) in capturedList" :key="idx">
 					<image class="cc-thumb-img" :src="img" mode="aspectFill"></image>
-					<view class="cc-thumb-del" @click="deletePhoto(idx)">
+					<view class="cc-thumb-del" @click.stop="deletePhoto(idx)">
 						<text class="cc-del-icon">✕</text>
 					</view>
 				</view>
@@ -24,7 +29,7 @@
 
 		<!-- 底部操作区 -->
 		<view class="cc-footer">
-			<view class="cc-capture-btn" @click="capturePhoto" :class="{ disabled: !ctxReady }">
+			<view class="cc-capture-btn" @click="capturePhoto" :class="{ disabled: !canCapture }">
 				<view class="cc-capture-inner"></view>
 			</view>
 			<view class="cc-confirm-btn" @click="confirmCapture" :class="{ disabled: capturedList.length === 0 }">
@@ -40,7 +45,15 @@
 			return {
 				capturedList: [],
 				ctx: null,
-				ctxReady: false
+				ctxReady: false,
+				useNativeCamera: true,
+				initRetries: 0,
+				maxRetries: 10
+			}
+		},
+		computed: {
+			canCapture() {
+				return this.capturedList.length < 9 && (this.useNativeCamera ? this.ctxReady : true)
 			}
 		},
 		onReady() {
@@ -54,13 +67,21 @@
 						this.ctxReady = true
 						console.log('摄像头已就绪')
 					} else {
-						// 延时重试
-						setTimeout(() => this.initCamera(), 500)
+						this.retryInit()
 					}
 				} catch (e) {
 					console.error('摄像头初始化失败:', e)
-					// 延时重试
+					this.retryInit()
+				}
+			},
+			retryInit() {
+				this.initRetries++
+				if (this.initRetries < this.maxRetries) {
 					setTimeout(() => this.initCamera(), 500)
+				} else {
+					console.log('摄像头组件初始化超时，切换到系统相机模式')
+					this.useNativeCamera = false
+					this.ctxReady = true
 				}
 			},
 			onCameraInit() {
@@ -69,17 +90,22 @@
 			},
 			onCameraError(e) {
 				console.error('摄像头错误:', e)
-				uni.showToast({ title: '摄像头启动失败', icon: 'none', duration: 3000 })
+				this.useNativeCamera = false
+				this.ctxReady = true
+				uni.showToast({ title: '切换到系统相机模式', icon: 'none' })
 			},
 			capturePhoto() {
 				if (this.capturedList.length >= 9) {
 					uni.showToast({ title: '最多拍9张', icon: 'none' })
 					return
 				}
-				if (!this.ctx || !this.ctxReady) {
-					uni.showToast({ title: '摄像头未就绪', icon: 'none' })
-					return
+				if (this.useNativeCamera && this.ctx && this.ctxReady) {
+					this.nativeCapture()
+				} else {
+					this.systemCapture()
 				}
+			},
+			nativeCapture() {
 				uni.showLoading({ title: '拍照中...', mask: true })
 				this.ctx.takePhoto({
 					quality: 'high',
@@ -92,6 +118,19 @@
 						console.error('拍照失败:', err)
 						uni.showToast({ title: '拍照失败', icon: 'none' })
 					}
+				})
+			},
+			systemCapture() {
+				uni.chooseImage({
+					count: 1,
+					sourceType: ['camera'],
+					sizeType: ['original'],
+					success: (res) => {
+						if (res.tempFilePaths && res.tempFilePaths.length > 0) {
+							this.capturedList.push(res.tempFilePaths[0])
+						}
+					},
+					fail: () => {}
 				})
 			},
 			deletePhoto(idx) {
@@ -146,9 +185,30 @@
 		color: #999;
 		font-size: 28rpx;
 	}
+	.cc-fallback {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background: #222;
+		gap: 16rpx;
+	}
+	.cc-fallback-icon {
+		font-size: 80rpx;
+	}
+	.cc-fallback-text {
+		color: #999;
+		font-size: 28rpx;
+	}
 	.cc-thumb-bar {
 		background: #1a1a1a;
 		padding: 16rpx 20rpx;
+	}
+	.cc-thumb-count {
+		color: #999;
+		font-size: 22rpx;
+		margin-bottom: 12rpx;
 	}
 	.cc-thumb-list {
 		display: flex;
