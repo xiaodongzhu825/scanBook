@@ -1,12 +1,12 @@
 <template>
 	<view class="cc-page">
-		<!-- 摄像头预览区（WebRTC） -->
+		<!-- 摄像头预览区 -->
 		<view class="cc-camera-wrap">
-			<video id="ccVideo" class="cc-video" autoplay playsinline muted></video>
-			<canvas id="ccCanvas" class="cc-canvas" style="display:none;"></canvas>
-			<view class="cc-camera-hint" v-if="!ctxReady">
-				<text class="cc-hint-text">{{ hintText }}</text>
+			<video id="ccVideo" ref="ccVideo" class="cc-video" autoplay playsinline muted v-if="useWebRTC"></video>
+			<view class="cc-camera-hint" v-if="!useWebRTC">
+				<text class="cc-hint-text">点击拍照按钮调用系统相机</text>
 			</view>
+			<canvas id="ccCanvas" ref="ccCanvas" class="cc-canvas" style="display:none;"></canvas>
 		</view>
 
 		<!-- 已拍照九宫格 -->
@@ -43,43 +43,60 @@
 				capturedList: [],
 				mediaStream: null,
 				ctxReady: false,
-				hintText: '摄像头启动中...'
+				useWebRTC: false
 			}
 		},
 		onReady() {
-			this.startCamera()
+			this.checkEnvironment()
 		},
 		onUnload() {
 			this.stopCamera()
 		},
 		methods: {
-			startCamera() {
-				var that = this
-				this.hintText = '摄像头启动中...'
+			// 检测运行环境
+			checkEnvironment() {
+				// H5 环境：document 存在且 getUserMedia 可用
 				try {
-					setTimeout(function() {
-						var video = document.getElementById('ccVideo')
-						if (!video) {
-							that.hintText = '视频组件加载失败'
-							return
-						}
-						navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 720 } })
-							.then(function(stream) {
-								that.mediaStream = stream
-								video.srcObject = stream
-								video.play()
-								that.ctxReady = true
-								that.hintText = ''
-								console.log('摄像头已就绪(WebRTC)')
-							})
-							.catch(function(err) {
-								console.error('getUserMedia失败:', err)
-								that.hintText = '摄像头访问被拒绝: ' + (err.message || '')
-							})
-					}, 500)
+					if (typeof document !== 'undefined' && typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+						this.useWebRTC = true
+						this.startWebRTC()
+					} else {
+						this.useWebRTC = false
+						this.ctxReady = true
+					}
+				} catch (e) {
+					this.useWebRTC = false
+					this.ctxReady = true
+				}
+			},
+			// WebRTC 启动摄像头（H5 环境）
+			startWebRTC() {
+				var that = this
+				try {
+					if (typeof document === 'undefined') {
+						this.ctxReady = true
+						return
+					}
+					var video = document.getElementById('ccVideo')
+					if (!video) {
+						this.ctxReady = true
+						return
+					}
+					navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 720 } })
+						.then(function(stream) {
+							that.mediaStream = stream
+							video.srcObject = stream
+							video.play()
+							that.ctxReady = true
+							console.log('WebRTC摄像头已就绪')
+						})
+						.catch(function(err) {
+							console.error('getUserMedia失败:', err)
+							that.ctxReady = true
+						})
 				} catch (e) {
 					console.error('摄像头启动异常:', e)
-					this.hintText = '摄像头启动异常'
+					this.ctxReady = true
 				}
 			},
 			stopCamera() {
@@ -96,37 +113,44 @@
 					uni.showToast({ title: '最多拍9张', icon: 'none' })
 					return
 				}
-				// 用 canvas 截取 video 帧
-				var video = document.getElementById('ccVideo')
+				if (this.useWebRTC && this.mediaStream && this.ctxReady) {
+					this.webRTCCapture()
+				} else {
+					this.systemCapture()
+				}
+			},
+			// WebRTC 截图
+			webRTCCapture() {
+				if (typeof document === 'undefined') {
+					this.systemCapture()
+					return
+				}
 				var canvas = document.getElementById('ccCanvas')
-				if (!video || !canvas) {
-					uni.showToast({ title: '拍照失败', icon: 'none' })
+				var video = document.getElementById('ccVideo')
+				if (!canvas || !video) {
+					this.systemCapture()
 					return
 				}
 				canvas.width = video.videoWidth || 1280
 				canvas.height = video.videoHeight || 720
 				var ctx = canvas.getContext('2d')
 				ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-				// 转 blob 后生成本地临时文件路径
+				var dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+				this.capturedList.push(dataUrl)
+			},
+			// 系统相机拍照
+			systemCapture() {
 				var that = this
-				canvas.toBlob(function(blob) {
-					if (!blob) {
-						// fallback: data url
-						var dataUrl = canvas.toDataURL('image/jpeg', 0.85)
-						that.capturedList.push(dataUrl)
-						return
-					}
-					// 用 FileReader 读 blob 为 dataUrl，走 uni.saveFile
-					var reader = new FileReader()
-					reader.onloadend = function() {
-						var base64 = reader.result
-						if (base64) {
-							// 直接存 base64 data url
-							that.capturedList.push(base64)
+				uni.chooseImage({
+					count: 1,
+					sourceType: ['camera'],
+					sizeType: ['original'],
+					success: function(res) {
+						if (res.tempFilePaths && res.tempFilePaths.length > 0) {
+							that.capturedList.push(res.tempFilePaths[0])
 						}
 					}
-					reader.readAsDataURL(blob)
-				}, 'image/jpeg', 0.85)
+				})
 			},
 			deletePhoto(idx) {
 				this.capturedList.splice(idx, 1)
@@ -136,7 +160,6 @@
 					uni.showToast({ title: '请先拍照', icon: 'none' })
 					return
 				}
-				// 停止摄像头
 				this.stopCamera()
 				var pages = getCurrentPages()
 				var prevPage = pages[pages.length - 2]
@@ -162,6 +185,9 @@
 		position: relative;
 		overflow: hidden;
 		background: #111;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 	.cc-video {
 		width: 100%;
@@ -172,21 +198,12 @@
 		display: none;
 	}
 	.cc-camera-hint {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #111;
+		text-align: center;
 		padding: 40rpx;
 	}
 	.cc-hint-text {
 		color: #999;
 		font-size: 28rpx;
-		text-align: center;
 	}
 	.cc-thumb-bar {
 		background: #1a1a1a;
