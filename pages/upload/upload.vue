@@ -907,7 +907,7 @@ export default {
 			noIsbnFormatOptions: ['2', '4', '6', '8', '12', '16', '18', '20', '24', '32', '36', '40', '42', '48', '50', '60', '64', '72', '大16', '大32', '其他'],
 
 			// 装订选项（无ISBN专用）
-			noIsbnBindingOptions: ['平装', '精装', '特殊装订', '古典装订', '其他'],
+			noIsbnBindingOptions: ['平装', '精装', '软精装', '线装', '其他'],
 			
 			// 分类（从API加载）
 			noIsbnCategoryData: [],
