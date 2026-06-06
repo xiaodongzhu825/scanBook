@@ -385,6 +385,20 @@
 
 							<view class="info-block-divider"></view>
 
+							<!-- 装订 -->
+							<view class="info-inline-row">
+								<text class="info-inline-label">装订</text>
+								<view class="dropdown-wrapper" style="flex:1;">
+									<input class="form-input" v-model="noIsbnBinding" placeholder="请选择装订" style="flex:1;" />
+									<view class="dropdown-btn" @click.stop="noIsbnBindingDropdownVisible = !noIsbnBindingDropdownVisible">▼</view>
+									<view v-if="noIsbnBindingDropdownVisible" class="dropdown-list">
+										<view class="dropdown-item" v-for="(item, idx) in noIsbnBindingOptions" :key="idx" @click="selectNoIsbnBinding(item)">{{ item }}</view>
+									</view>
+								</view>
+							</view>
+
+							<view class="info-block-divider"></view>
+
 							<!-- 开本 -->
 							<view class="info-inline-row">
 								<text class="info-inline-label">开本</text>
@@ -869,6 +883,7 @@ export default {
 			noIsbnAuthor: '',
 			noIsbnPublisher: '',
 			noIsbnFormat: '',
+			noIsbnBinding: '',
 			noIsbnOriginalPrice: '',
 			noIsbnWordCount: '',
 			noIsbnIsbn: '',
@@ -886,9 +901,13 @@ export default {
 			noIsbnPublisherOptions: [],
 			noIsbnPublisherDropdownVisible: false,
 			noIsbnFormatDropdownVisible: false,
-			
+			noIsbnBindingDropdownVisible: false,
+
 			// 开本选项（无ISBN专用）
 			noIsbnFormatOptions: ['2', '4', '6', '8', '12', '16', '18', '20', '24', '32', '36', '40', '42', '48', '50', '60', '64', '72', '大16', '大32', '其他'],
+
+			// 装订选项（无ISBN专用）
+			noIsbnBindingOptions: ['平装', '精装', '特殊装订', '古典装订', '其他'],
 			
 			// 分类（从API加载）
 			noIsbnCategoryData: [],
@@ -2074,7 +2093,7 @@ export default {
 					this.isbn = ''
 					this.bookName = ''
 					this.price = ''
-					this.stock = ''
+					this.stock = 1
 					this.author = ''
 					this.publisher = ''
 					this.fixPrice = ''
@@ -2084,13 +2103,15 @@ export default {
 					this.noIsbnPhotoList = []
 					this.noIsbnBookName = ''
 					this.noIsbnPrice = ''
-					this.noIsbnStock = ''
+					this.noIsbnStock = 1
 					this.noIsbnAuthor = ''
 					this.noIsbnPublisher = ''
 					this.noIsbnOriginalPrice = ''
 					this.noIsbnIsbn = ''
 					this.noIsbnUnifyIsbn = ''
 					this.noIsbnPrintTime = ''
+					this.noIsbnFormat = ''
+					this.noIsbnBinding = ''
 					this.noIsbnProductList = []
 				}
 			} catch (e) {
@@ -2377,6 +2398,11 @@ export default {
 		selectNoIsbnFormat(item) {
 			this.noIsbnFormat = item
 			this.noIsbnFormatDropdownVisible = false
+		},
+
+		selectNoIsbnBinding(item) {
+			this.noIsbnBinding = item
+			this.noIsbnBindingDropdownVisible = false
 		},
 
 		// 登录 - 接入孔夫子真实登录
