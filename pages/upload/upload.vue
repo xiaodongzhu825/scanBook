@@ -2164,7 +2164,7 @@ export default {
 					page_count: '0',
 					word_count: this.noIsbnWordCount || '',
 					book_format: '',
-					live_image: imageUrls.join(','),
+					'live_image[]': imageUrls.join(','),
 					timestamp: timestamp,
 					sign_method: 'md5'
 				}
