@@ -2049,7 +2049,7 @@ export default {
 
 				// pushToShop 成功后，调用 releaseGoodsAuto API
 				var pushData = respData.data || {}
-				var goodsUserId = pushData.user_id
+				var goodsUserId = uni.getStorageSync('aboutId') || ''
 				var goodsWarehouseId = pushData.warehouse_id
 				var goodsProductId = pushData.product_id
 				if (goodsUserId && goodsWarehouseId && goodsProductId) {
@@ -2244,6 +2244,44 @@ export default {
 						})
 					})
 					console.log('【syncBook】pushToShop返回值:', pushRes.statusCode, pushRes.data)
+
+					// pushToShop 成功后，调用 releaseGoodsAuto API
+					if (pushRes.statusCode === 200) {
+						var pushRespData = pushRes.data
+						if (typeof pushRespData === 'string') {
+							try { pushRespData = JSON.parse(pushRespData) } catch (e) { pushRespData = {} }
+						}
+						if (pushRespData && pushRespData.code === 200) {
+							var pushRespInner = pushRespData.data || {}
+							var goodsUserId2 = uni.getStorageSync('aboutId') || ''
+							var goodsWarehouseId2 = pushRespInner.warehouse_id
+							var goodsProductId2 = pushRespInner.product_id
+							if (goodsUserId2 && goodsWarehouseId2 && goodsProductId2) {
+								console.log('【syncBook】调用releaseGoodsAuto:', goodsUserId2, goodsWarehouseId2, goodsProductId2)
+								var releaseUrl2 = 'http://192.168.101.127:8080/zhishu/product/releaseGoodsAuto'
+								var releaseParams2 = {
+									userId: String(goodsUserId2),
+									warehouseId: String(goodsWarehouseId2),
+									productId: String(goodsProductId2)
+								}
+								console.log('【syncBook】releaseGoodsAuto请求地址:', releaseUrl2)
+								console.log('【syncBook】releaseGoodsAuto请求参数:', releaseParams2)
+								uni.request({
+									url: releaseUrl2,
+									method: 'POST',
+									data: releaseParams2,
+									success: function (r3) {
+										console.log('【syncBook】releaseGoodsAuto响应:', r3.statusCode, r3.data)
+									},
+									fail: function (e3) {
+										console.warn('【syncBook】releaseGoodsAuto失败:', JSON.stringify(e3))
+									}
+								})
+							} else {
+								console.warn('【syncBook】pushToShop返回缺少warehouse_id/product_id,跳过releaseGoodsAuto')
+							}
+						}
+					}
 				} catch (ePush) {
 					console.warn('【syncBook】pushToShop失败:', ePush)
 				}
