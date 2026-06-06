@@ -839,6 +839,38 @@
 				</view>
 			</view>
 		</view>
+
+		<!-- 无ISBN已有图书选择弹窗 -->
+		<view class="noisbn-book-mask" v-if="noIsbnBookPopupVisible" @click="closeNoIsbnBookPopup">
+			<view class="noisbn-book-popup" @click.stop>
+				<view class="noisbn-book-header">
+					<text class="noisbn-book-title">已查到 {{ noIsbnBookList.length }} 条记录</text>
+					<text class="noisbn-book-close" @click="closeNoIsbnBookPopup">✕</text>
+				</view>
+				<scroll-view class="noisbn-book-scroll" scroll-y>
+					<view class="noisbn-book-item" v-for="(item, idx) in noIsbnBookPagedList" :key="idx" @click="selectNoIsbnBookItem(item)">
+						<view class="noisbn-book-item-num">{{ (noIsbnBookPage - 1) * noIsbnBookPageSize + idx + 1 }}</view>
+						<view class="noisbn-book-item-body">
+							<view class="noisbn-book-item-name">{{ item.book_name || '' }}</view>
+							<view class="noisbn-book-item-meta">
+								<text v-if="item.author" class="meta-tag">作者:{{ item.author }}</text>
+								<text v-if="item.publishing" class="meta-tag">出版社:{{ item.publishing }}</text>
+								<text v-if="item.isbn" class="meta-tag">ISBN:{{ item.isbn }}</text>
+							</view>
+						</view>
+						<text class="noisbn-book-item-arrow">›</text>
+					</view>
+				</scroll-view>
+				<view class="noisbn-book-pages" v-if="noIsbnBookTotalPages > 1">
+					<view class="page-btn" :class="{ disabled: noIsbnBookPage <= 1 }" @click="prevNoIsbnBookPage">‹ 上一页</view>
+					<view class="page-info">{{ noIsbnBookPage }} / {{ noIsbnBookTotalPages }}</view>
+					<view class="page-btn" :class="{ disabled: noIsbnBookPage >= noIsbnBookTotalPages }" @click="nextNoIsbnBookPage">下一页 ›</view>
+				</view>
+				<view class="noisbn-book-footer">
+					<view class="noisbn-book-btn noisbn-book-cancel" @click="closeNoIsbnBookPopup">取消</view>
+				</view>
+			</view>
+		</view>
 	</view>
 </template>
 
@@ -908,6 +940,12 @@ export default {
 
 			// 装订选项（无ISBN专用）
 			noIsbnBindingOptions: ['平装', '精装', '软精装', '线装', '其他'],
+
+			// 无ISBN已有图书弹窗
+			noIsbnBookPopupVisible: false,
+			noIsbnBookList: [],
+			noIsbnBookPage: 1,
+			noIsbnBookPageSize: 5,
 			
 			// 分类（从API加载）
 			noIsbnCategoryData: [],
@@ -1185,6 +1223,16 @@ export default {
 		},
 		noIsbnPrintTime() {
 			this.syncNoIsbnPrintTimeIndexes()
+		},
+
+		// 无ISBN已有图书弹窗 - 当前页展示的数据
+		noIsbnBookPagedList() {
+			var start = (this.noIsbnBookPage - 1) * this.noIsbnBookPageSize
+			return this.noIsbnBookList.slice(start, start + this.noIsbnBookPageSize)
+		},
+		// 无ISBN已有图书弹窗 - 总页数
+		noIsbnBookTotalPages() {
+			return Math.ceil(this.noIsbnBookList.length / this.noIsbnBookPageSize) || 1
 		}
 	},
 
@@ -2380,44 +2428,10 @@ export default {
 					if (res.statusCode === 200 && res.data && res.data.code === 200) {
 						var list = (res.data.data && res.data.data.list) || []
 						if (list.length > 0) {
-							// 显示弹窗供用户选择
-							var items = []
-							for (var ii = 0; ii < list.length; ii++) {
-								var item = list[ii]
-								var label = (ii + 1) + '. ' + (item.book_name || '')
-								if (item.author) label += ' | 作者:' + item.author
-								if (item.publishing) label += ' | 出版社:' + item.publishing
-								if (item.isbn) label += ' | ISBN:' + item.isbn
-								items.push(label)
-							}
-							uni.showActionSheet({
-								itemList: items,
-								title: '已查到 ' + list.length + ' 条记录，请选择',
-								success: function(btnRes) {
-									var selected = list[btnRes.tapIndex]
-									if (selected) {
-										if (selected.book_name) that.noIsbnBookName = selected.book_name
-										if (selected.author) that.noIsbnAuthor = selected.author
-										if (selected.publishing) that.noIsbnPublisher = selected.publishing
-										if (selected.isbn) {
-											that.noIsbnIsbn = selected.isbn
-											that.noIsbnUnifyIsbn = ''
-										}
-										if (selected.publication_time && Number(selected.publication_time) > 0) {
-											var d = new Date(Number(selected.publication_time) * 1000)
-											that.noIsbnPrintTime = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
-										}
-										if (selected.words_count) that.noIsbnWordCount = String(selected.words_count)
-										if (selected.price) that.noIsbnOriginalPrice = String(selected.price)
-										if (selected.binding) that.noIsbnBinding = selected.binding
-										uni.showToast({ title: '已选择: ' + (selected.book_name || ''), icon: 'success' })
-									}
-									if (typeof callback === 'function') callback.call(that, false)
-								},
-								fail: function() {
-									if (typeof callback === 'function') callback.call(that, true)
-								}
-							})
+							// 使用自定义弹窗替代 uni.showActionSheet
+							that.noIsbnBookList = list
+							that.noIsbnBookPage = 1
+							that.noIsbnBookPopupVisible = true
 							return
 						}
 						// code=200但无数据，走回调（进入孔网搜索）
@@ -2441,6 +2455,46 @@ export default {
 					if (typeof callback === 'function') callback.call(that, true)
 				}
 			})
+		},
+
+		// 无ISBN已有图书弹窗 - 打开
+		openNoIsbnBookPopup() {
+			this.noIsbnBookPopupVisible = true
+		},
+		// 无ISBN已有图书弹窗 - 关闭
+		closeNoIsbnBookPopup() {
+			this.noIsbnBookPopupVisible = false
+			this.noIsbnBookList = []
+			this.noIsbnBookPage = 1
+		},
+		// 无ISBN已有图书弹窗 - 选中一项
+		selectNoIsbnBookItem(selected) {
+			if (selected.book_name) this.noIsbnBookName = selected.book_name
+			if (selected.author) this.noIsbnAuthor = selected.author
+			if (selected.publishing) this.noIsbnPublisher = selected.publishing
+			if (selected.isbn) {
+				this.noIsbnIsbn = selected.isbn
+				this.noIsbnUnifyIsbn = ''
+			}
+			if (selected.publication_time && Number(selected.publication_time) > 0) {
+				var d = new Date(Number(selected.publication_time) * 1000)
+				this.noIsbnPrintTime = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+			}
+			if (selected.words_count) this.noIsbnWordCount = String(selected.words_count)
+			if (selected.price) this.noIsbnOriginalPrice = String(selected.price)
+			if (selected.binding) this.noIsbnBinding = selected.binding
+			uni.showToast({ title: '已选择: ' + (selected.book_name || ''), icon: 'success' })
+			this.closeNoIsbnBookPopup()
+			// 选择后继续走孔夫子搜索流程
+			this.searchNoIsbnKongfz()
+		},
+		// 无ISBN已有图书弹窗 - 上一页
+		prevNoIsbnBookPage() {
+			if (this.noIsbnBookPage > 1) this.noIsbnBookPage--
+		},
+		// 无ISBN已有图书弹窗 - 下一页
+		nextNoIsbnBookPage() {
+			if (this.noIsbnBookPage < Math.ceil(this.noIsbnBookList.length / this.noIsbnBookPageSize)) this.noIsbnBookPage++
 		},
 
 		// 无ISBN - 孔夫子搜索（原searchNoIsbn逻辑）
@@ -4628,5 +4682,147 @@ picker {
 
 .blocked-textarea:focus {
   border-color: #409eff;
+}
+
+/* 无ISBN已有图书弹窗 */
+.noisbn-book-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.noisbn-book-popup {
+  background: #fff;
+  border-radius: 20rpx;
+  width: 85%;
+  max-width: 650rpx;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.noisbn-book-header {
+  padding: 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+.noisbn-book-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+.noisbn-book-close {
+  font-size: 36rpx;
+  color: #999;
+  padding: 8rpx;
+}
+.noisbn-book-scroll {
+  flex: 1;
+  max-height: 60vh;
+  padding: 0 20rpx;
+}
+.noisbn-book-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 16rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+  cursor: pointer;
+}
+.noisbn-book-item:active {
+  background: #f5f7fa;
+}
+.noisbn-book-item-num {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #409eff;
+  color: #fff;
+  font-size: 22rpx;
+  text-align: center;
+  line-height: 48rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+.noisbn-book-item-body {
+  flex: 1;
+  min-width: 0;
+}
+.noisbn-book-item-name {
+  font-size: 28rpx;
+  color: #303133;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.noisbn-book-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-top: 8rpx;
+}
+.meta-tag {
+  font-size: 22rpx;
+  color: #909399;
+  background: #f5f7fa;
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+  white-space: nowrap;
+}
+.noisbn-book-item-arrow {
+  color: #c0c4cc;
+  font-size: 32rpx;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+}
+.noisbn-book-pages {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20rpx;
+  gap: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+.noisbn-book-pages .page-btn {
+  font-size: 26rpx;
+  color: #409eff;
+  padding: 8rpx 24rpx;
+  border: 1rpx solid #d9ecff;
+  border-radius: 10rpx;
+  cursor: pointer;
+}
+.noisbn-book-pages .page-btn.disabled {
+  color: #c0c4cc;
+  border-color: #f0f0f0;
+}
+.noisbn-book-pages .page-info {
+  font-size: 26rpx;
+  color: #606266;
+  min-width: 80rpx;
+  text-align: center;
+}
+.noisbn-book-footer {
+  padding: 20rpx 30rpx 30rpx;
+  display: flex;
+  justify-content: center;
+}
+.noisbn-book-btn {
+  padding: 18rpx 60rpx;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  text-align: center;
+  cursor: pointer;
+}
+.noisbn-book-cancel {
+  background: #f5f7fa;
+  color: #606266;
 }
 </style>
