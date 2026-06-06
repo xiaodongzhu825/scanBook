@@ -2221,7 +2221,7 @@ export default {
 						user_id: userId,
 						warehouse_id: String(warehouseData.warehouseId || ''),
 						location_id: String(warehouseData.locationId || ''),
-						isbn: this.noIsbnIsbn || this.noIsbnUnifyIsbn || '',
+						isbn: (respData.data && (respData.data.isbn || '')) || this.noIsbnIsbn || this.noIsbnUnifyIsbn || '',
 						price: this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '',
 						stock: String(this.noIsbnStock ?? ''),
 						appearance: conditionDisplay,
