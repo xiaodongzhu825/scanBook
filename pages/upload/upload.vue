@@ -703,7 +703,7 @@
 
 		<!-- 底部提交栏 -->
 		<view class="bottom-bar">
-			<view class="submit-btn" :class="{ disabled: currentTab === 'no-isbn' }" @click="submitUpload">
+			<view class="submit-btn" @click="submitUpload">
 				<text class="submit-text">确认上传</text>
 			</view>
 		</view>
@@ -1900,8 +1900,6 @@ export default {
 		// 提交上传
 		async submitUpload() {
 			if (this.isSubmitting) return
-			// 无ISBN上传暂不可用
-			if (this.currentTab === 'no-isbn') return
 
 			const warehouseData = this.currentTab === 'isbn' ? this.isbnWarehouseData : this.noIsbnWarehouseData
 			if (!warehouseData) {
@@ -1951,7 +1949,11 @@ export default {
 				console.log('【上传】MinIO图片URL列表:', imageUrls)
 
 				// 图片上传完成后直接推送数据到接口
-				await this.doSubmit(warehouseData, imageUrls)
+				if (this.currentTab === 'isbn') {
+					await this.doSubmit(warehouseData, imageUrls)
+				} else {
+					await this.doNoIsbnSyncBook(imageUrls)
+				}
 			} catch (e) {
 				uni.hideLoading()
 				this.isSubmitting = false
@@ -2118,6 +2120,104 @@ export default {
 				uni.hideLoading()
 				console.error('【上传】失败:', e)
 				uni.showToast({ title: '上传失败: ' + (e.message || '未知错误'), icon: 'none', duration: 3000 })
+			} finally {
+				this.isSubmitting = false
+			}
+		},
+
+		// 无ISBN - 调用 syncBook 同步图书数据
+		async doNoIsbnSyncBook(imageUrls) {
+			this.isSubmitting = true
+			uni.showLoading({ title: '上传中...', mask: true })
+			try {
+				const token = uni.getStorageSync('token') || ''
+
+				// 构建参数
+				const params = {
+					fid: '0',
+					type: '4',
+					isbn: this.noIsbnIsbn || this.noIsbnUnifyIsbn || '',
+					f_isbn: '0',
+					book_name: this.noIsbnBookName || '',
+					f_book_name: '',
+					author: this.noIsbnAuthor || '',
+					publisher: this.noIsbnPublisher || '',
+					publication_time: this.noIsbnPrintTime || '',
+					binding_layout: '',
+					fix_price: this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '',
+					page_count: '0',
+					word_count: this.noIsbnWordCount || '',
+					book_format: '',
+					live_image: imageUrls.join(',')
+				}
+
+				const apiUrl = 'https://psi.api.buzhiyushu.cn/api/syncBook'
+				console.log('【syncBook】请求地址:', apiUrl)
+				console.log('【syncBook】请求参数:', params)
+
+				const res = await new Promise(function (resolve, reject) {
+					uni.request({
+						url: apiUrl,
+						method: 'POST',
+						header: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							'Authorization': 'Bearer ' + token
+						},
+						data: params,
+						success: function (r) { resolve(r) },
+						fail: function (e) { reject(e) }
+					})
+				})
+
+				console.log('【syncBook】返回值:', res.statusCode, res.data)
+
+				uni.hideLoading()
+
+				if (res.statusCode !== 200) {
+					throw new Error('API返回: HTTP ' + res.statusCode)
+				}
+
+				var respData = res.data
+				if (typeof respData === 'string') {
+					try { respData = JSON.parse(respData) } catch (e) { respData = { code: 500, msg: respData } }
+				}
+
+				if (respData && respData.code === 200) {
+ 					uni.showToast({ title: respData.msg || '上传成功', icon: 'success' })
+				} else {
+					throw new Error(respData && respData.msg || '上传失败')
+				}
+
+				// 保存上传记录到本地
+				const uploadHistory = uni.getStorageSync('uploadHistory') || []
+				uploadHistory.unshift({
+					id: Date.now(),
+					time: new Date().toLocaleString(),
+					type: this.currentTab,
+					apiUrl: apiUrl,
+					apiResponse: res.data,
+					data: params
+				})
+				uni.setStorageSync('uploadHistory', uploadHistory.slice(0, 100))
+
+				// 清空表单
+				this.noIsbnPhotoList = []
+				this.noIsbnBookName = ''
+				this.noIsbnPrice = ''
+				this.noIsbnStock = 1
+				this.noIsbnAuthor = ''
+				this.noIsbnPublisher = ''
+				this.noIsbnOriginalPrice = ''
+				this.noIsbnIsbn = ''
+				this.noIsbnUnifyIsbn = ''
+				this.noIsbnPrintTime = ''
+				this.noIsbnFormat = ''
+				this.noIsbnBinding = ''
+				this.noIsbnProductList = []
+			} catch (e) {
+				uni.hideLoading()
+				console.error('【syncBook】失败:', e)
+				uni.showToast({ title: e.message || '上传失败', icon: 'none', duration: 3000 })
 			} finally {
 				this.isSubmitting = false
 			}
