@@ -329,6 +329,9 @@ export function searchBookByIsbn(isbn) {
 	})
 }
 
+// 导出 calculateSign 供组件按名导入
+export { calculateSign }
+
 export default {
 	calculateSign,
 	getWarehouseList,
