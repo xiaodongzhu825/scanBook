@@ -2085,7 +2085,7 @@ export default {
 				var goodsProductId = pushData.product_id
 				if (goodsUserId && goodsWarehouseId && goodsProductId) {
 					console.log('【上传】调用releaseGoodsAuto:', goodsUserId, goodsWarehouseId, goodsProductId)
-					var releaseUrl = 'http://192.168.101.127:8080/zhishu/product/releaseGoodsAuto'
+					var releaseUrl = 'https://erp.buzhiyushu.cn/zhishu/product/releaseGoodsAuto'
 					var releaseParams = {
 						userId: String(goodsUserId),
 						warehouseId: String(goodsWarehouseId),
@@ -2289,7 +2289,7 @@ export default {
 							var goodsProductId2 = pushRespInner.product_id
 							if (goodsUserId2 && goodsWarehouseId2 && goodsProductId2) {
 								console.log('【syncBook】调用releaseGoodsAuto:', goodsUserId2, goodsWarehouseId2, goodsProductId2)
-								var releaseUrl2 = 'http://192.168.101.127:8080/zhishu/product/releaseGoodsAuto'
+								var releaseUrl2 = 'https://erp.buzhiyushu.cn/zhishu/product/releaseGoodsAuto'
 								var releaseParams2 = {
 									userId: String(goodsUserId2),
 									warehouseId: String(goodsWarehouseId2),
