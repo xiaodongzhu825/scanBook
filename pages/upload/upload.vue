@@ -2420,12 +2420,25 @@ export default {
 							})
 							return
 						}
+						// code=200但无数据，走回调（进入孔网搜索）
+						if (typeof callback === 'function') callback.call(that, false)
+					} else {
+						// 非200或code≠200，显示错误，不执行下一步
+						var errMsg = ''
+						if (res.data) {
+							errMsg = res.data.msg || res.data.message || ('请求失败: ' + res.statusCode)
+						} else {
+							errMsg = '请求失败: HTTP ' + res.statusCode
+						}
+						console.error('【getNoIsbnBook】错误:', errMsg)
+						uni.showToast({ title: errMsg, icon: 'none', duration: 3000 })
+						if (typeof callback === 'function') callback.call(that, true)
 					}
-					// 无数据，走回调
-					if (typeof callback === 'function') callback.call(that, false)
 				},
-				fail: function() {
-					if (typeof callback === 'function') callback.call(that, false)
+				fail: function(err) {
+					console.error('【getNoIsbnBook】网络请求失败:', JSON.stringify(err))
+					uni.showToast({ title: '网络请求失败', icon: 'none', duration: 3000 })
+					if (typeof callback === 'function') callback.call(that, true)
 				}
 			})
 		},
