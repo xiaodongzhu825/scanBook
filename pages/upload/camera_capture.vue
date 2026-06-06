@@ -1,15 +1,8 @@
 <template>
 	<view class="cc-page">
 		<!-- 摄像头预览区 -->
-		<view class="cc-camera-wrap" v-if="useNativeCamera">
-			<camera id="ccCamera" class="cc-camera" device-position="back" flash="off" @error="onCameraError" @initdone="onCameraInit"></camera>
-			<view class="cc-camera-hint" v-if="!ctxReady">
-				<text class="cc-hint-text">摄像头初始化中...</text>
-			</view>
-		</view>
-		<view class="cc-fallback" v-else>
-			<text class="cc-fallback-icon">📷</text>
-			<text class="cc-fallback-text">点击拍照按钮调用系统相机</text>
+		<view class="cc-camera-wrap">
+			<camera id="ccCamera" class="cc-camera" device-position="back" flash="off" @error="onCameraError"></camera>
 		</view>
 
 		<!-- 已拍照九宫格 -->
@@ -29,7 +22,7 @@
 
 		<!-- 底部操作区 -->
 		<view class="cc-footer">
-			<view class="cc-capture-btn" @click="capturePhoto" :class="{ disabled: !canCapture }">
+			<view class="cc-capture-btn" @click="capturePhoto" :class="{ disabled: capturedList.length >= 9 }">
 				<view class="cc-capture-inner"></view>
 			</view>
 			<view class="cc-confirm-btn" @click="confirmCapture" :class="{ disabled: capturedList.length === 0 }">
@@ -44,68 +37,58 @@
 		data() {
 			return {
 				capturedList: [],
-				ctx: null,
-				ctxReady: false,
-				useNativeCamera: true,
-				initRetries: 0,
-				maxRetries: 10
-			}
-		},
-		computed: {
-			canCapture() {
-				return this.capturedList.length < 9 && (this.useNativeCamera ? this.ctxReady : true)
+				ctx: null
 			}
 		},
 		onReady() {
-			this.initCamera()
+			this.getCameraContext()
 		},
 		methods: {
-			initCamera() {
+			getCameraContext() {
 				try {
 					this.ctx = uni.createCameraContext()
-					if (this.ctx) {
-						this.ctxReady = true
-						console.log('摄像头已就绪')
-					} else {
-						this.retryInit()
-					}
+					console.log('摄像头上下文:', this.ctx ? '已获取' : '获取失败')
 				} catch (e) {
-					console.error('摄像头初始化失败:', e)
-					this.retryInit()
+					console.error('createCameraContext异常:', e)
 				}
-			},
-			retryInit() {
-				this.initRetries++
-				if (this.initRetries < this.maxRetries) {
-					setTimeout(() => this.initCamera(), 500)
-				} else {
-					console.log('摄像头组件初始化超时，切换到系统相机模式')
-					this.useNativeCamera = false
-					this.ctxReady = true
+				// 若未就绪，每1秒重试，最多5秒
+				if (!this.ctx) {
+					var count = 0
+					var timer = setInterval(() => {
+						count++
+						try {
+							this.ctx = uni.createCameraContext()
+							if (this.ctx) {
+								console.log('摄像头上下文获取成功')
+								clearInterval(timer)
+							}
+						} catch (e) {}
+						if (count >= 5) {
+							clearInterval(timer)
+							console.log('摄像头上下文获取超时')
+						}
+					}, 1000)
 				}
-			},
-			onCameraInit() {
-				console.log('摄像头initdone')
-				this.initCamera()
 			},
 			onCameraError(e) {
 				console.error('摄像头错误:', e)
-				this.useNativeCamera = false
-				this.ctxReady = true
-				uni.showToast({ title: '切换到系统相机模式', icon: 'none' })
+				uni.showToast({ title: '摄像头启动失败: ' + (e.detail || ''), icon: 'none' })
 			},
 			capturePhoto() {
 				if (this.capturedList.length >= 9) {
 					uni.showToast({ title: '最多拍9张', icon: 'none' })
 					return
 				}
-				if (this.useNativeCamera && this.ctx && this.ctxReady) {
-					this.nativeCapture()
-				} else {
-					this.systemCapture()
+				if (!this.ctx) {
+					// 尝试重新获取
+					try {
+						this.ctx = uni.createCameraContext()
+					} catch (e) {}
 				}
-			},
-			nativeCapture() {
+				if (!this.ctx) {
+					uni.showToast({ title: '摄像头未就绪', icon: 'none' })
+					return
+				}
 				uni.showLoading({ title: '拍照中...', mask: true })
 				this.ctx.takePhoto({
 					quality: 'high',
@@ -118,19 +101,6 @@
 						console.error('拍照失败:', err)
 						uni.showToast({ title: '拍照失败', icon: 'none' })
 					}
-				})
-			},
-			systemCapture() {
-				uni.chooseImage({
-					count: 1,
-					sourceType: ['camera'],
-					sizeType: ['original'],
-					success: (res) => {
-						if (res.tempFilePaths && res.tempFilePaths.length > 0) {
-							this.capturedList.push(res.tempFilePaths[0])
-						}
-					},
-					fail: () => {}
 				})
 			},
 			deletePhoto(idx) {
@@ -169,37 +139,6 @@
 	.cc-camera {
 		width: 100%;
 		height: 100%;
-	}
-	.cc-camera-hint {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #111;
-	}
-	.cc-hint-text {
-		color: #999;
-		font-size: 28rpx;
-	}
-	.cc-fallback {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		background: #222;
-		gap: 16rpx;
-	}
-	.cc-fallback-icon {
-		font-size: 80rpx;
-	}
-	.cc-fallback-text {
-		color: #999;
-		font-size: 28rpx;
 	}
 	.cc-thumb-bar {
 		background: #1a1a1a;
@@ -265,10 +204,6 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: opacity 0.3s;
-	}
-	.cc-capture-btn.disabled {
-		opacity: 0.4;
 	}
 	.cc-capture-inner {
 		width: 64rpx;
@@ -278,6 +213,9 @@
 	}
 	.cc-capture-btn:active .cc-capture-inner {
 		background: #ccc;
+	}
+	.cc-capture-btn.disabled {
+		opacity: 0.4;
 	}
 	.cc-confirm-btn {
 		padding: 18rpx 40rpx;
