@@ -447,6 +447,26 @@
 
 						<!-- ===== 在售商品 ===== -->
 						<view class="form-section" v-if="noIsbnProductList.length > 0">
+							<!-- 市场统计 -->
+							<view class="market-stats">
+								<view class="stat-item">
+									<text class="stat-label">在售</text>
+									<text class="stat-value">{{ noIsbnMarketData.onSale }}</text>
+								</view>
+								<view class="stat-item">
+									<text class="stat-label">旧</text>
+									<text class="stat-value">{{ noIsbnMarketData.old }}</text>
+								</view>
+								<view class="stat-item">
+									<text class="stat-label">新</text>
+									<text class="stat-value">{{ noIsbnMarketData.new }}</text>
+								</view>
+								<view class="stat-item">
+									<text class="stat-label">已售</text>
+									<text class="stat-value">{{ noIsbnMarketData.sold }}</text>
+								</view>
+							</view>
+							<view class="info-block-divider" style="margin:14rpx 0;"></view>
 							<view class="section-header-row">
 								<view class="section-title">
 									<text class="title-text">在售商品</text>
@@ -890,7 +910,7 @@ export default {
 			printTime: '',
 			price: '',
 			stock: 1,
-			selectedCondition: '六品',
+			selectedCondition: '八五品',
 			conditionList: ['六品', '七品', '八品', '八五品', '九品', '九五品', '全新'],
 			photoList: [],
 			isbnSelectedArea: '',
@@ -915,7 +935,7 @@ export default {
 			noIsbnWordCount: '',
 			noIsbnIsbn: '',
 			noIsbnUnifyIsbn: '',
-			noIsbnSelectedCondition: '六品',
+			noIsbnSelectedCondition: '八五品',
 			noIsbnPrice: '',
 			noIsbnStock: 1,
 			noIsbnPhotoList: [],
@@ -954,6 +974,7 @@ export default {
 			noIsbnProductList: [],
 			noIsbnHistoryList: [],
 			noIsbnLoading: false,
+			noIsbnMarketData: { onSale: 0, old: 0, new: 0, sold: 0 },
 
 			// 筛选
 			showFilterPopup: false,
@@ -2439,10 +2460,12 @@ export default {
 			})
 		},
 
-		// 无ISBN已有图书弹窗 - 关闭
+		// 无ISBN已有图书弹窗 - 关闭（取消选择，走孔夫子搜索）
 		closeNoIsbnBookPopup() {
 			this.noIsbnBookPopupVisible = false
 			this.noIsbnBookList = []
+			// 取消选择，用表单数据走孔夫子搜索
+			this.searchNoIsbnKongfz()
 		},
 		// 无ISBN已有图书弹窗 - 选中一项
 		selectNoIsbnBookItem(selected) {
@@ -2525,6 +2548,13 @@ export default {
 						}
 					})
 				}
+				// 市场统计
+				this.noIsbnMarketData = {
+					onSale: onSaleFacet ? onSaleFacet.totalFound : (productsData ? productsData.total : 0),
+					old: onSaleFacet ? onSaleFacet.oldCount : 0,
+					new: onSaleFacet ? onSaleFacet.newCount : 0,
+					sold: soldFacet ? (soldFacet.oldCount + soldFacet.newCount) : 0
+				}
 				// 填充下拉选项
 				this.noIsbnAuthorOptions = Array.from(authorSet).filter(Boolean).slice(0, 10)
 				this.noIsbnPublisherOptions = Array.from(publisherSet).filter(Boolean).slice(0, 10)
@@ -2537,6 +2567,7 @@ export default {
 			}).catch(err => {
 				console.error('无ISBN搜索失败:', err)
 				this.noIsbnLoading = false
+				this.noIsbnMarketData = { onSale: 0, old: 0, new: 0, sold: 0 }
 				uni.showToast({ title: '查询失败', icon: 'none' })
 			})
 		},
