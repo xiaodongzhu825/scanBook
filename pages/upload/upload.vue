@@ -441,10 +441,6 @@
 										<text class="add-icon">+</text>
 										<text class="add-text">拍照</text>
 									</view>
-									<view class="photo-add photo-add-camera" @click="openCameraCapture" v-if="noIsbnPhotoList.length < 9">
-										<text class="add-icon">📷</text>
-										<text class="add-text">连拍</text>
-									</view>
 								</view>
 							</view>
 						</view>
