@@ -2159,7 +2159,7 @@ export default {
 					author: this.noIsbnAuthor || '',
 					publisher: this.noIsbnPublisher || '',
 					publication_time: pubTimestamp,
-					binding_layout: '',
+					binding_layout: this.noIsbnBinding || '',
 					fix_price: this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '',
 					page_count: '0',
 					word_count: this.noIsbnWordCount || '',
