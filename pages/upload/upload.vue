@@ -2134,6 +2134,8 @@ export default {
 
 				// 构建参数
 				const params = {
+					app_key: 'psi',
+					client_id: 'psi',
 					fid: '0',
 					type: '4',
 					isbn: this.noIsbnIsbn || this.noIsbnUnifyIsbn || '',
