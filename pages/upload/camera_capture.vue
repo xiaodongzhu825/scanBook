@@ -2,7 +2,10 @@
 	<view class="cc-page">
 		<!-- 摄像头预览区 -->
 		<view class="cc-camera-wrap">
-			<camera class="cc-camera" device-position="back" flash="off" @error="onCameraError"></camera>
+			<camera id="ccCamera" class="cc-camera" device-position="back" flash="off" @error="onCameraError" @initdone="onCameraInit"></camera>
+			<view class="cc-camera-hint" v-if="!ctxReady">
+				<text class="cc-hint-text">摄像头初始化中...</text>
+			</view>
 		</view>
 
 		<!-- 已拍照九宫格 -->
@@ -21,7 +24,7 @@
 
 		<!-- 底部操作区 -->
 		<view class="cc-footer">
-			<view class="cc-capture-btn" @click="capturePhoto">
+			<view class="cc-capture-btn" @click="capturePhoto" :class="{ disabled: !ctxReady }">
 				<view class="cc-capture-inner"></view>
 			</view>
 			<view class="cc-confirm-btn" @click="confirmCapture" :class="{ disabled: capturedList.length === 0 }">
@@ -36,13 +39,34 @@
 		data() {
 			return {
 				capturedList: [],
-				ctx: null
+				ctx: null,
+				ctxReady: false
 			}
 		},
 		onReady() {
-			this.ctx = uni.createCameraContext()
+			this.initCamera()
 		},
 		methods: {
+			initCamera() {
+				try {
+					this.ctx = uni.createCameraContext()
+					if (this.ctx) {
+						this.ctxReady = true
+						console.log('摄像头已就绪')
+					} else {
+						// 延时重试
+						setTimeout(() => this.initCamera(), 500)
+					}
+				} catch (e) {
+					console.error('摄像头初始化失败:', e)
+					// 延时重试
+					setTimeout(() => this.initCamera(), 500)
+				}
+			},
+			onCameraInit() {
+				console.log('摄像头initdone')
+				this.initCamera()
+			},
 			onCameraError(e) {
 				console.error('摄像头错误:', e)
 				uni.showToast({ title: '摄像头启动失败', icon: 'none', duration: 3000 })
@@ -52,7 +76,7 @@
 					uni.showToast({ title: '最多拍9张', icon: 'none' })
 					return
 				}
-				if (!this.ctx) {
+				if (!this.ctx || !this.ctxReady) {
 					uni.showToast({ title: '摄像头未就绪', icon: 'none' })
 					return
 				}
@@ -78,7 +102,6 @@
 					uni.showToast({ title: '请先拍照', icon: 'none' })
 					return
 				}
-				// 获取上一页实例，设置数据并返回
 				var pages = getCurrentPages()
 				var prevPage = pages[pages.length - 2]
 				if (prevPage) {
@@ -96,15 +119,32 @@
 		flex-direction: column;
 		height: 100vh;
 		background: #000;
+		overflow: hidden;
 	}
 	.cc-camera-wrap {
 		flex: 1;
 		position: relative;
 		overflow: hidden;
+		background: #111;
 	}
 	.cc-camera {
 		width: 100%;
 		height: 100%;
+	}
+	.cc-camera-hint {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #111;
+	}
+	.cc-hint-text {
+		color: #999;
+		font-size: 28rpx;
 	}
 	.cc-thumb-bar {
 		background: #1a1a1a;
@@ -165,6 +205,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		transition: opacity 0.3s;
+	}
+	.cc-capture-btn.disabled {
+		opacity: 0.4;
 	}
 	.cc-capture-inner {
 		width: 64rpx;
