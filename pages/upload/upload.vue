@@ -2412,7 +2412,7 @@ export default {
 										if (selected.binding) that.noIsbnBinding = selected.binding
 										uni.showToast({ title: '已选择: ' + (selected.book_name || ''), icon: 'success' })
 									}
-									if (typeof callback === 'function') callback.call(that, true)
+									if (typeof callback === 'function') callback.call(that, false)
 								},
 								fail: function() {
 									if (typeof callback === 'function') callback.call(that, true)
