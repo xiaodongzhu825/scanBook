@@ -844,15 +844,15 @@
 		<view class="noisbn-book-mask" v-if="noIsbnBookPopupVisible" @click="closeNoIsbnBookPopup">
 			<view class="noisbn-book-popup" @click.stop>
 				<view class="noisbn-book-header">
-					<text class="noisbn-book-title">已查到 {{ noIsbnBookList.length }} 条记录</text>
+					<text class="noisbn-book-title">已查到 {{ noIsbnBookList.length }} 条记录，点击选择</text>
 					<text class="noisbn-book-close" @click="closeNoIsbnBookPopup">✕</text>
 				</view>
 				<scroll-view class="noisbn-book-scroll" scroll-y>
-					<view class="noisbn-book-item" v-for="(item, idx) in noIsbnBookPagedList" :key="idx" @click="selectNoIsbnBookItem(item)">
-						<view class="noisbn-book-item-num">{{ (noIsbnBookPage - 1) * noIsbnBookPageSize + idx + 1 }}</view>
+					<view class="noisbn-book-item" v-for="(item, idx) in noIsbnBookList" :key="idx" @click="selectNoIsbnBookItem(item)">
+						<view class="noisbn-book-item-num">{{ idx + 1 }}</view>
 						<view class="noisbn-book-item-body">
 							<view class="noisbn-book-item-name">{{ item.book_name || '' }}</view>
-							<view class="noisbn-book-item-meta">
+							<view class="noisbn-book-item-meta" v-if="item.author || item.publishing || item.isbn">
 								<text v-if="item.author" class="meta-tag">作者:{{ item.author }}</text>
 								<text v-if="item.publishing" class="meta-tag">出版社:{{ item.publishing }}</text>
 								<text v-if="item.isbn" class="meta-tag">ISBN:{{ item.isbn }}</text>
@@ -861,11 +861,6 @@
 						<text class="noisbn-book-item-arrow">›</text>
 					</view>
 				</scroll-view>
-				<view class="noisbn-book-pages" v-if="noIsbnBookTotalPages > 1">
-					<view class="page-btn" :class="{ disabled: noIsbnBookPage <= 1 }" @click="prevNoIsbnBookPage">‹ 上一页</view>
-					<view class="page-info">{{ noIsbnBookPage }} / {{ noIsbnBookTotalPages }}</view>
-					<view class="page-btn" :class="{ disabled: noIsbnBookPage >= noIsbnBookTotalPages }" @click="nextNoIsbnBookPage">下一页 ›</view>
-				</view>
 				<view class="noisbn-book-footer">
 					<view class="noisbn-book-btn noisbn-book-cancel" @click="closeNoIsbnBookPopup">取消</view>
 				</view>
@@ -944,8 +939,6 @@ export default {
 			// 无ISBN已有图书弹窗
 			noIsbnBookPopupVisible: false,
 			noIsbnBookList: [],
-			noIsbnBookPage: 1,
-			noIsbnBookPageSize: 5,
 			
 			// 分类（从API加载）
 			noIsbnCategoryData: [],
@@ -1223,16 +1216,6 @@ export default {
 		},
 		noIsbnPrintTime() {
 			this.syncNoIsbnPrintTimeIndexes()
-		},
-
-		// 无ISBN已有图书弹窗 - 当前页展示的数据
-		noIsbnBookPagedList() {
-			var start = (this.noIsbnBookPage - 1) * this.noIsbnBookPageSize
-			return this.noIsbnBookList.slice(start, start + this.noIsbnBookPageSize)
-		},
-		// 无ISBN已有图书弹窗 - 总页数
-		noIsbnBookTotalPages() {
-			return Math.ceil(this.noIsbnBookList.length / this.noIsbnBookPageSize) || 1
 		}
 	},
 
@@ -2428,9 +2411,8 @@ export default {
 					if (res.statusCode === 200 && res.data && res.data.code === 200) {
 						var list = (res.data.data && res.data.data.list) || []
 						if (list.length > 0) {
-							// 使用自定义弹窗替代 uni.showActionSheet
+							// 使用自定义弹窗
 							that.noIsbnBookList = list
-							that.noIsbnBookPage = 1
 							that.noIsbnBookPopupVisible = true
 							return
 						}
@@ -2457,15 +2439,10 @@ export default {
 			})
 		},
 
-		// 无ISBN已有图书弹窗 - 打开
-		openNoIsbnBookPopup() {
-			this.noIsbnBookPopupVisible = true
-		},
 		// 无ISBN已有图书弹窗 - 关闭
 		closeNoIsbnBookPopup() {
 			this.noIsbnBookPopupVisible = false
 			this.noIsbnBookList = []
-			this.noIsbnBookPage = 1
 		},
 		// 无ISBN已有图书弹窗 - 选中一项
 		selectNoIsbnBookItem(selected) {
@@ -2487,14 +2464,6 @@ export default {
 			this.closeNoIsbnBookPopup()
 			// 选择后继续走孔夫子搜索流程
 			this.searchNoIsbnKongfz()
-		},
-		// 无ISBN已有图书弹窗 - 上一页
-		prevNoIsbnBookPage() {
-			if (this.noIsbnBookPage > 1) this.noIsbnBookPage--
-		},
-		// 无ISBN已有图书弹窗 - 下一页
-		nextNoIsbnBookPage() {
-			if (this.noIsbnBookPage < Math.ceil(this.noIsbnBookList.length / this.noIsbnBookPageSize)) this.noIsbnBookPage++
 		},
 
 		// 无ISBN - 孔夫子搜索（原searchNoIsbn逻辑）
@@ -4702,7 +4671,7 @@ picker {
   border-radius: 20rpx;
   width: 85%;
   max-width: 650rpx;
-  max-height: 80vh;
+  max-height: 75vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -4725,8 +4694,8 @@ picker {
   padding: 8rpx;
 }
 .noisbn-book-scroll {
-  flex: 1;
   max-height: 60vh;
+  height: 600rpx;
   padding: 0 20rpx;
 }
 .noisbn-book-item {
@@ -4782,32 +4751,6 @@ picker {
   font-size: 32rpx;
   margin-left: 12rpx;
   flex-shrink: 0;
-}
-.noisbn-book-pages {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20rpx;
-  gap: 20rpx;
-  border-top: 1rpx solid #f0f0f0;
-}
-.noisbn-book-pages .page-btn {
-  font-size: 26rpx;
-  color: #409eff;
-  padding: 8rpx 24rpx;
-  border: 1rpx solid #d9ecff;
-  border-radius: 10rpx;
-  cursor: pointer;
-}
-.noisbn-book-pages .page-btn.disabled {
-  color: #c0c4cc;
-  border-color: #f0f0f0;
-}
-.noisbn-book-pages .page-info {
-  font-size: 26rpx;
-  color: #606266;
-  min-width: 80rpx;
-  text-align: center;
 }
 .noisbn-book-footer {
   padding: 20rpx 30rpx 30rpx;
