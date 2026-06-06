@@ -2134,6 +2134,19 @@ export default {
 
 				// 构建参数（用于计算签名）
 				var timestamp = String(Math.floor(Date.now() / 1000))
+
+				// 出版时间转时间戳（1970-01-01 为 0）
+				var pubTimeStr = this.noIsbnPrintTime || ''
+				var pubTimestamp = '0'
+				if (pubTimeStr) {
+					var parts = pubTimeStr.split('-')
+					if (parts.length >= 2) {
+						var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1)
+						var ts = Math.floor(d.getTime() / 1000)
+						if (ts >= 0) { pubTimestamp = String(ts) }
+					}
+				}
+
 				const params = {
 					app_key: 'psi',
 					client_id: 'psi',
@@ -2145,7 +2158,7 @@ export default {
 					f_book_name: '',
 					author: this.noIsbnAuthor || '',
 					publisher: this.noIsbnPublisher || '',
-					publication_time: this.noIsbnPrintTime || '',
+					publication_time: pubTimestamp,
 					binding_layout: '',
 					fix_price: this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '',
 					page_count: '0',
