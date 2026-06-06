@@ -53,6 +53,12 @@
 			"style": {
 				"navigationBarTitleText": "图书上传"
 			}
+		},
+		{
+			"path": "pages/upload/camera_capture",
+			"style": {
+				"navigationBarTitleText": "连拍"
+			}
 		}
 	],
 	"globalStyle": {

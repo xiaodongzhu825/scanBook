@@ -441,6 +441,10 @@
 										<text class="add-icon">+</text>
 										<text class="add-text">拍照</text>
 									</view>
+									<view class="photo-add photo-add-camera" @click="openCameraCapture" v-if="noIsbnPhotoList.length < 9">
+										<text class="add-icon">📷</text>
+										<text class="add-text">连拍</text>
+									</view>
 								</view>
 							</view>
 						</view>
@@ -941,6 +945,7 @@ export default {
 			noIsbnPhotoList: [],
 			noIsbnSelectedArea: '',
 			noIsbnWarehouseData: null,
+			capturedPhotoList: null,
 			
 			// 无ISBN - 下拉列表
 			noIsbnAuthorOptions: [],
@@ -1240,6 +1245,15 @@ export default {
 		}
 	},
 
+	// 页面显示时处理连拍返回的照片
+	onShow() {
+		if (this.capturedPhotoList && this.capturedPhotoList.length > 0) {
+			var photos = this.capturedPhotoList
+			this.noIsbnPhotoList = [...this.noIsbnPhotoList, ...photos]
+			this.capturedPhotoList = null
+		}
+	},
+
 	methods: {
 		// 标签切换
 		switchTab(tab) {
@@ -1426,6 +1440,12 @@ export default {
 				success: (res) => {
 					this.noIsbnPhotoList = [...this.noIsbnPhotoList, ...res.tempFilePaths]
 				}
+			})
+		},
+		// 无ISBN - 打开连拍页面
+		openCameraCapture() {
+			uni.navigateTo({
+				url: 'camera_capture'
 			})
 		},
 
