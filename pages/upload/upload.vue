@@ -2210,6 +2210,44 @@ export default {
 					throw new Error(respData && respData.msg || '上传失败')
 				}
 
+				// syncBook 成功后调用 pushToShop 推送到店铺
+				try {
+					const warehouseData = this.noIsbnWarehouseData
+					const conditionDisplay = this.noIsbnConditionValue.replace('~', '')
+					const userId = uni.getStorageSync('aboutId') || ''
+					const tokenPush = uni.getStorageSync('token') || ''
+					const pushUrl = 'https://psi.api.buzhiyushu.cn/api/product/pushToShop'
+					const pushData = {
+						user_id: userId,
+						warehouse_id: String(warehouseData.warehouseId || ''),
+						location_id: String(warehouseData.locationId || ''),
+						isbn: this.noIsbnIsbn || this.noIsbnUnifyIsbn || '',
+						price: this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '',
+						stock: String(this.noIsbnStock ?? ''),
+						appearance: conditionDisplay,
+						product_name: this.noIsbnBookName || '',
+						photos: imageUrls.join(',')
+					}
+					console.log('【syncBook】pushToShop请求地址:', pushUrl)
+					console.log('【syncBook】pushToShop请求参数:', pushData)
+					const pushRes = await new Promise(function (resolve, reject) {
+						uni.request({
+							url: pushUrl,
+							method: 'POST',
+							header: {
+								'Content-Type': 'application/x-www-form-urlencoded',
+								'Authorization': 'Bearer ' + tokenPush
+							},
+							data: pushData,
+							success: function (r) { resolve(r) },
+							fail: function (e) { reject(e) }
+						})
+					})
+					console.log('【syncBook】pushToShop返回值:', pushRes.statusCode, pushRes.data)
+				} catch (ePush) {
+					console.warn('【syncBook】pushToShop失败:', ePush)
+				}
+
 				// 保存上传记录到本地
 				const uploadHistory = uni.getStorageSync('uploadHistory') || []
 				uploadHistory.unshift({
