@@ -2331,6 +2331,115 @@ export default {
 				uni.showToast({ title: '请输入书名', icon: 'none' })
 				return
 			}
+			// 先查询PSI系统已有图书
+			this.searchNoIsbnBook(function(hasData) {
+				if (!hasData) {
+					// 无匹配数据，走孔网搜索
+					this.searchNoIsbnKongfz()
+				}
+			}.bind(this))
+		},
+
+		// 无ISBN - 查询PSI系统已有图书（getNoIsbnBook），有数据则弹窗选择
+		searchNoIsbnBook(callback) {
+			var ts = String(Math.floor(Date.now() / 1000))
+			var token = uni.getStorageSync('token') || ''
+			var params = {
+				app_key: 'psi',
+				client_id: 'psi',
+				timestamp: ts,
+				sign_method: 'md5',
+				book_name: this.noIsbnBookName || '',
+				author: this.noIsbnAuthor || '',
+				publisher: this.noIsbnPublisher || ''
+			}
+			var sign = calculateSign(params)
+
+			var q = []
+			q.push('app_key=' + encodeURIComponent(params.app_key))
+			q.push('client_id=' + encodeURIComponent(params.client_id))
+			q.push('timestamp=' + encodeURIComponent(params.timestamp))
+			q.push('sign_method=' + encodeURIComponent(params.sign_method))
+			q.push('book_name=' + encodeURIComponent(params.book_name))
+			q.push('author=' + encodeURIComponent(params.author))
+			q.push('publisher=' + encodeURIComponent(params.publisher))
+			q.push('sign=' + encodeURIComponent(sign))
+			var url = 'https://psi.api.buzhiyushu.cn/api/getNoIsbnBook?' + q.join('&')
+
+			console.log('【getNoIsbnBook】请求URL:', url)
+
+			var that = this
+			uni.request({
+				url: url,
+				method: 'GET',
+				header: {
+					'Authorization': 'Bearer ' + token
+				},
+				success: function(res) {
+					console.log('【getNoIsbnBook】响应:', res.statusCode, res.data)
+					if (res.statusCode === 200 && res.data && res.data.code === 200) {
+						var list = (res.data.data && res.data.data.list) || []
+						if (list.length > 0) {
+							// 显示弹窗供用户选择
+							var items = []
+							for (var ii = 0; ii < list.length; ii++) {
+								var item = list[ii]
+								var label = (ii + 1) + '. ' + (item.book_name || '')
+								if (item.author) label += ' | 作者:' + item.author
+								if (item.publishing) label += ' | 出版社:' + item.publishing
+								if (item.isbn) label += ' | ISBN:' + item.isbn
+								items.push(label)
+							}
+							uni.showActionSheet({
+								itemList: items,
+								title: '已查到 ' + list.length + ' 条记录，请选择',
+								success: function(btnRes) {
+									var selected = list[btnRes.tapIndex]
+									if (selected) {
+										if (selected.book_name) that.noIsbnBookName = selected.book_name
+										if (selected.author) that.noIsbnAuthor = selected.author
+										if (selected.publishing) that.noIsbnPublisher = selected.publishing
+										if (selected.isbn) {
+											that.noIsbnIsbn = selected.isbn
+											that.noIsbnUnifyIsbn = ''
+										}
+										if (selected.publication_time && Number(selected.publication_time) > 0) {
+											var d = new Date(Number(selected.publication_time) * 1000)
+											that.noIsbnPrintTime = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+										}
+										if (selected.words_count) that.noIsbnWordCount = String(selected.words_count)
+										if (selected.price) that.noIsbnOriginalPrice = String(selected.price)
+										if (selected.binding) that.noIsbnBinding = selected.binding
+										uni.showToast({ title: '已选择: ' + (selected.book_name || ''), icon: 'success' })
+									}
+									if (typeof callback === 'function') callback.call(that, true)
+								},
+								fail: function() {
+									if (typeof callback === 'function') callback.call(that, true)
+								}
+							})
+							return
+						}
+					}
+					// 无数据，走回调
+					if (typeof callback === 'function') callback.call(that, false)
+				},
+				fail: function() {
+					if (typeof callback === 'function') callback.call(that, false)
+				}
+			})
+		},
+
+		// 无ISBN - 孔夫子搜索（原searchNoIsbn逻辑）
+		searchNoIsbnKongfz() {
+			if (!this.isLoggedIn) {
+				uni.showToast({ title: '请先登录孔网账号', icon: 'none' })
+				return
+			}
+			if (!this.noIsbnBookName) {
+				uni.showToast({ title: '请输入书名', icon: 'none' })
+				return
+			}
 			this.noIsbnLoading = true
 			this.noIsbnProductList = []
 			const phpsessid = this.kongfzToken || uni.getStorageSync('kongfz_phpsessid') || ''
@@ -2548,7 +2657,7 @@ export default {
 
 							uni.showToast({ title: '识别成功', icon: 'success' })
 
-							// 有书名则自动搜索孔网比价
+							// 有书名则先查PSI系统已有图书，无匹配时自动搜索孔网比价
 							if (this.noIsbnBookName) {
 								setTimeout(() => this.searchNoIsbn(), 500)
 							}
