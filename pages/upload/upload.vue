@@ -2123,17 +2123,19 @@ export default {
 				if (goodsUserId && goodsWarehouseId && goodsProductId) {
 					console.log('【上传】调用releaseGoodsAuto:', goodsUserId, goodsWarehouseId, goodsProductId)
 					var releaseUrl = 'https://api.buzhiyushu.cn/zhishu/product/releaseGoodsAuto'
-					var releaseParams = {
-						userId: String(goodsUserId),
-						warehouseId: String(goodsWarehouseId),
-						productId: String(goodsProductId)
-					}
+					var fd = new FormData()
+					fd.append('userId', String(goodsUserId))
+					fd.append('warehouseId', String(goodsWarehouseId))
+					fd.append('productId', String(goodsProductId))
 					console.log('【上传】releaseGoodsAuto请求地址:', releaseUrl)
-					console.log('【上传】releaseGoodsAuto请求参数:', releaseParams)
+					console.log('【上传】releaseGoodsAuto请求参数:', { userId: String(goodsUserId), warehouseId: String(goodsWarehouseId), productId: String(goodsProductId) })
 					uni.request({
 						url: releaseUrl,
 						method: 'POST',
-						data: releaseParams,
+						header: {
+							'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg=='
+						},
+						data: fd,
 						success: function (r2) {
 							console.log('【上传】releaseGoodsAuto响应:', r2.statusCode, r2.data)
 						},
@@ -2327,17 +2329,19 @@ export default {
 							if (goodsUserId2 && goodsWarehouseId2 && goodsProductId2) {
 								console.log('【syncBook】调用releaseGoodsAuto:', goodsUserId2, goodsWarehouseId2, goodsProductId2)
 								var releaseUrl2 = 'https://api.buzhiyushu.cn/zhishu/product/releaseGoodsAuto'
-								var releaseParams2 = {
-									userId: String(goodsUserId2),
-									warehouseId: String(goodsWarehouseId2),
-									productId: String(goodsProductId2)
-								}
+								var fd2 = new FormData()
+								fd2.append('userId', String(goodsUserId2))
+								fd2.append('warehouseId', String(goodsWarehouseId2))
+								fd2.append('productId', String(goodsProductId2))
 								console.log('【syncBook】releaseGoodsAuto请求地址:', releaseUrl2)
-								console.log('【syncBook】releaseGoodsAuto请求参数:', releaseParams2)
+								console.log('【syncBook】releaseGoodsAuto请求参数:', { userId: String(goodsUserId2), warehouseId: String(goodsWarehouseId2), productId: String(goodsProductId2) })
 								uni.request({
 									url: releaseUrl2,
 									method: 'POST',
-									data: releaseParams2,
+									header: {
+										'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg=='
+									},
+									data: fd2,
 									success: function (r3) {
 										console.log('【syncBook】releaseGoodsAuto响应:', r3.statusCode, r3.data)
 									},
