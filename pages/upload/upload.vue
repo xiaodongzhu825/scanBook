@@ -2123,19 +2123,30 @@ export default {
 				if (goodsUserId && goodsWarehouseId && goodsProductId) {
 					console.log('【上传】调用releaseGoodsAuto:', goodsUserId, goodsWarehouseId, goodsProductId)
 					var releaseUrl = 'https://api.buzhiyushu.cn/zhishu/product/releaseGoodsAuto'
-					var fd = new FormData()
-					fd.append('userId', String(goodsUserId))
-					fd.append('warehouseId', String(goodsWarehouseId))
-					fd.append('productId', String(goodsProductId))
+					// 手动构建 multipart/form-data 正文（兼容 App 环境，FormData 不可用）
+					var boundary = '----Boundary' + Math.random().toString(36).slice(2)
+					var bodyArr = []
+					var appendField = function(name, val) {
+						bodyArr.push('--' + boundary)
+						bodyArr.push('Content-Disposition: form-data; name="' + name + '"')
+						bodyArr.push('')
+						bodyArr.push(String(val))
+					}
+					appendField('userId', goodsUserId)
+					appendField('warehouseId', goodsWarehouseId)
+					appendField('productId', goodsProductId)
+					bodyArr.push('--' + boundary + '--')
+					var formBody = bodyArr.join('\r\n')
 					console.log('【上传】releaseGoodsAuto请求地址:', releaseUrl)
 					console.log('【上传】releaseGoodsAuto请求参数:', { userId: String(goodsUserId), warehouseId: String(goodsWarehouseId), productId: String(goodsProductId) })
 					uni.request({
 						url: releaseUrl,
 						method: 'POST',
 						header: {
+							'Content-Type': 'multipart/form-data; boundary=' + boundary,
 							'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg=='
 						},
-						data: fd,
+						data: formBody,
 						success: function (r2) {
 							console.log('【上传】releaseGoodsAuto响应:', r2.statusCode, r2.data)
 						},
@@ -2329,19 +2340,29 @@ export default {
 							if (goodsUserId2 && goodsWarehouseId2 && goodsProductId2) {
 								console.log('【syncBook】调用releaseGoodsAuto:', goodsUserId2, goodsWarehouseId2, goodsProductId2)
 								var releaseUrl2 = 'https://api.buzhiyushu.cn/zhishu/product/releaseGoodsAuto'
-								var fd2 = new FormData()
-								fd2.append('userId', String(goodsUserId2))
-								fd2.append('warehouseId', String(goodsWarehouseId2))
-								fd2.append('productId', String(goodsProductId2))
+								var boundary2 = '----Boundary' + Math.random().toString(36).slice(2)
+								var bodyArr2 = []
+								var appendField2 = function(name, val) {
+									bodyArr2.push('--' + boundary2)
+									bodyArr2.push('Content-Disposition: form-data; name="' + name + '"')
+									bodyArr2.push('')
+									bodyArr2.push(String(val))
+								}
+								appendField2('userId', goodsUserId2)
+								appendField2('warehouseId', goodsWarehouseId2)
+								appendField2('productId', goodsProductId2)
+								bodyArr2.push('--' + boundary2 + '--')
+								var formBody2 = bodyArr2.join('\r\n')
 								console.log('【syncBook】releaseGoodsAuto请求地址:', releaseUrl2)
 								console.log('【syncBook】releaseGoodsAuto请求参数:', { userId: String(goodsUserId2), warehouseId: String(goodsWarehouseId2), productId: String(goodsProductId2) })
 								uni.request({
 									url: releaseUrl2,
 									method: 'POST',
 									header: {
+										'Content-Type': 'multipart/form-data; boundary=' + boundary2,
 										'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg=='
 									},
-									data: fd2,
+									data: formBody2,
 									success: function (r3) {
 										console.log('【syncBook】releaseGoodsAuto响应:', r3.statusCode, r3.data)
 									},
