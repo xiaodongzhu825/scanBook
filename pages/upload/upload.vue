@@ -181,11 +181,11 @@
 									<text class="grid-book-name">{{ item.bookName || '未知书名' }}</text>
 									<text class="grid-author">{{ item.author || '' }}</text>
 									<text class="grid-total-price">¥{{ item.totalPrice.toFixed(2) }}</text>
-									<text class="grid-price-detail" v-if="item.shippingFee > 0">书¥{{ item.bookPrice.toFixed(2) }}+运¥{{ item.shippingFee.toFixed(2) }}</text>
+									<text class="grid-price-detail">书¥{{ item.bookPrice.toFixed(2) }}+运¥{{ item.shippingFee.toFixed(2) }}</text>
 									<text class="grid-condition">{{ item.condition || '' }}</text>
 									<text class="grid-shop">{{ item.shopName || '' }}</text>
 								</view>
-								
+
 								<!-- 无数据提示 -->
 								<view class="no-data" v-if="productList.length === 0">
 									<text class="no-data-text">暂无在售商品，请先进行比价</text>
@@ -485,7 +485,7 @@
 									<text class="grid-book-name">{{ item.bookName || '未知书名' }}</text>
 									<text class="grid-author">{{ item.author || '' }}</text>
 									<text class="grid-total-price">¥{{ item.totalPrice.toFixed(2) }}</text>
-									<text class="grid-price-detail" v-if="item.shippingFee > 0">书¥{{ item.bookPrice.toFixed(2) }}+运¥{{ item.shippingFee.toFixed(2) }}</text>
+									<text class="grid-price-detail">书¥{{ item.bookPrice.toFixed(2) }}+运¥{{ item.shippingFee.toFixed(2) }}</text>
 									<text class="grid-condition">{{ item.condition || '' }}</text>
 									<text class="grid-shop">{{ item.shopName || '' }}</text>
 								</view>
