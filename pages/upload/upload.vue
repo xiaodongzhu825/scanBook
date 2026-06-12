@@ -1507,6 +1507,9 @@ export default {
 						cancelText: '取消',
 						success: (modalRes) => {
 							if (modalRes.confirm) {
+								uni.removeStorageSync('token')
+								uni.removeStorageSync('warehouseList')
+								uni.removeStorageSync('aboutId')
 								uni.navigateTo({ url: '/pages/login/login' })
 							}
 						}
@@ -1574,6 +1577,9 @@ export default {
 						cancelText: '取消',
 						success: (modalRes) => {
 							if (modalRes.confirm) {
+								uni.removeStorageSync('token')
+								uni.removeStorageSync('warehouseList')
+								uni.removeStorageSync('aboutId')
 								uni.navigateTo({ url: '/pages/login/login' })
 							}
 						}
