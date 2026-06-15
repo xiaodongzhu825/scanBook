@@ -1262,12 +1262,12 @@ export default {
 	methods: {
 		// ISBN-10 转 ISBN-13（自动转换）
 		convertIsbn10To13(isbn) {
-			if (!isbn) return isbn
+			if (!isbn) return ''
 			// 去掉连字符和空格
 			var clean = isbn.replace(/[-\s]/g, '')
 			// 只处理10位纯数字（可能有X结尾）
 			var match = clean.match(/^(\d{9})([\dXx])$/)
-			if (!match) return isbn
+			if (!match) return ''
 			// 前9位 + 前缀978
 			var digits = '978' + match[1]
 			// 计算ISBN-13校验码
