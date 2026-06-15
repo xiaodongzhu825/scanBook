@@ -54,13 +54,13 @@ export function login(username, password) {
 					try {
 						const json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
 						if (json.errCode === 1001) {
-							resolve({ success: false, token: '', message: '账号或密码错误' })
+							resolve({ success: false, token: '', message: json.errInfo || '账号或密码错误' })
 						} else if (json.errCode === 1005) {
-							resolve({ success: false, token: '', message: '密码错误' })
+							resolve({ success: false, token: '', message: json.errInfo || '密码错误' })
 						} else if (json.errCode === 1009) {
-							resolve({ success: false, token: '', message: '调用次数已达上限，请稍后再试' })
+							resolve({ success: false, token: '', message: json.errInfo || '调用次数已达上限，请稍后再试' })
 						} else {
-							resolve({ success: false, token: '', message: json.msg || '登录失败' })
+							resolve({ success: false, token: '', message: json.errInfo || '登录失败' })
 						}
 					} catch (e) {
 						resolve({ success: false, token: '', message: '登录失败，请检查账号密码' })

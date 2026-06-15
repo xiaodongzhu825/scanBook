@@ -53,7 +53,7 @@
 				</view>
 				<view class="user-info">
 					<text class="user-name">用户名</text>
-					<text class="version-text">系统版本：v1.0.0</text>
+					<text class="version-text">系统版本：v{{ appVersion }}</text>
 				</view>
 			</view>
 
@@ -130,116 +130,131 @@
 </template>
 
 <script>
-export default {
-	data() {
-		return {
-			currentTab: 'home'
-		}
-	},
+	// 读取 manifest.json 中的版本号（uni-app 编译时自动去除注释）
+	var manifestData = {}
+	try {
+		manifestData = require('../../manifest.json')
+	} catch (e) {
+		manifestData = { versionName: '1.0.0' }
+	}
 
-	onLoad() {
-		uni.setNavigationBarTitle({
-			title: '入库助手'
-		})
-	},
+	export default {
+		data() {
+			return {
+				currentTab: 'home',
+				appVersion: manifestData.versionName || '1.0.0'
+			}
+		},
 
-	methods: {
-		// 切换Tab
-		switchTab(tab) {
-			this.currentTab = tab
+		onLoad() {
 			uni.setNavigationBarTitle({
-				title: tab === 'home' ? '入库助手' : '我的'
+				title: '入库助手'
 			})
-		},
-
-		// ISBN上传
-		handleISBNUpload() {
-			const data = uni.getStorageSync('selectedWarehouseData')
-			let params = 'tab=isbn'
-			if (data && data.warehouseName && data.locationCode) {
-				const encode = encodeURIComponent
-				params += `&whName=${encode(data.warehouseName)}&whCode=${encode(data.warehouseCode)}&whId=${encode(data.warehouseId)}`
-				params += `&locCode=${encode(data.locationCode)}&locName=${encode(data.locationName)}&locId=${encode(data.locationId)}`
-			}
-			uni.navigateTo({ url: `/pages/upload/upload?${params}` })
-		},
-
-		// 无ISBN上传
-		handleNoISBNUpload() {
-			const data = uni.getStorageSync('selectedWarehouseData')
-			let params = 'tab=no-isbn'
-			if (data && data.warehouseName && data.locationCode) {
-				const encode = encodeURIComponent
-				params += `&whName=${encode(data.warehouseName)}&whCode=${encode(data.warehouseCode)}&whId=${encode(data.warehouseId)}`
-				params += `&locCode=${encode(data.locationCode)}&locName=${encode(data.locationName)}&locId=${encode(data.locationId)}`
-			}
-			uni.navigateTo({ url: `/pages/upload/upload?${params}` })
-		},
-
-		// 菜单点击
-		handleMenu(type) {
-			const menuNames = {
-				vip: '开通会员',
-				offline: '线下订单管理',
-				shelf: '货架管理',
-				refresh: '孔网商品翻新',
-				record: '上书记录',
-				order: '仓库订单查询'
-			}
-
-			// 开通会员跳转到VIP页面
-			if (type === 'vip') {
-				uni.navigateTo({
-					url: '/pages/vip/vip'
-				})
-				return
-			}
-
-			// 上书记录跳转到记录页面
-			if (type === 'record') {
-				uni.navigateTo({
-					url: '/pages/record/record'
-				})
-				return
-			}
-
-			// 仓库订单查询跳转到订单页面
-			if (type === 'order') {
-				uni.navigateTo({
-					url: '/pages/order/order'
-				})
-				return
-			}
-
-			uni.showToast({
-				title: menuNames[type],
-				icon: 'none'
-			})
-			// TODO: 跳转到对应页面
-		},
-
-		// 退出登录
-		handleLogout() {
-			uni.showModal({
-				title: '提示',
-				content: '确定要退出登录吗？',
-				success: (res) => {
-					if (res.confirm) {
-						uni.removeStorageSync('token')
-						uni.redirectTo({
-							url: '/pages/login/login'
-						})
-					}
+			// App 原生模式优先使用 plus.runtime.version
+			try {
+				if (typeof plus !== 'undefined' && plus.runtime && plus.runtime.version) {
+					this.appVersion = plus.runtime.version
 				}
-			})
+			} catch (e) {}
 		},
 
-		// 返回功能入口页面
-		goBackToEntry() {
-			uni.redirectTo({ url: '/pages/entry/entry' })
+		methods: {
+			// 切换Tab
+			switchTab(tab) {
+				this.currentTab = tab
+				uni.setNavigationBarTitle({
+					title: tab === 'home' ? '入库助手' : '我的'
+				})
+			},
+
+			// ISBN上传
+			handleISBNUpload() {
+				const data = uni.getStorageSync('selectedWarehouseData')
+				let params = 'tab=isbn'
+				if (data && data.warehouseName && data.locationCode) {
+					const encode = encodeURIComponent
+					params += `&whName=${encode(data.warehouseName)}&whCode=${encode(data.warehouseCode)}&whId=${encode(data.warehouseId)}`
+					params += `&locCode=${encode(data.locationCode)}&locName=${encode(data.locationName)}&locId=${encode(data.locationId)}`
+				}
+				uni.navigateTo({ url: `/pages/upload/upload?${params}` })
+			},
+
+			// 无ISBN上传
+			handleNoISBNUpload() {
+				const data = uni.getStorageSync('selectedWarehouseData')
+				let params = 'tab=no-isbn'
+				if (data && data.warehouseName && data.locationCode) {
+					const encode = encodeURIComponent
+					params += `&whName=${encode(data.warehouseName)}&whCode=${encode(data.warehouseCode)}&whId=${encode(data.warehouseId)}`
+					params += `&locCode=${encode(data.locationCode)}&locName=${encode(data.locationName)}&locId=${encode(data.locationId)}`
+				}
+				uni.navigateTo({ url: `/pages/upload/upload?${params}` })
+			},
+
+			// 菜单点击
+			handleMenu(type) {
+				const menuNames = {
+					vip: '开通会员',
+					offline: '线下订单管理',
+					shelf: '货架管理',
+					refresh: '孔网商品翻新',
+					record: '上书记录',
+					order: '仓库订单查询'
+				}
+
+				// 开通会员跳转到VIP页面
+				if (type === 'vip') {
+					uni.navigateTo({
+						url: '/pages/vip/vip'
+					})
+					return
+				}
+
+				// 上书记录跳转到记录页面
+				if (type === 'record') {
+					uni.navigateTo({
+						url: '/pages/record/record'
+					})
+					return
+				}
+
+				// 仓库订单查询跳转到订单页面
+				if (type === 'order') {
+					uni.navigateTo({
+						url: '/pages/order/order'
+					})
+					return
+				}
+
+				uni.showToast({
+					title: menuNames[type],
+					icon: 'none'
+				})
+				// TODO: 跳转到对应页面
+			},
+
+			// 退出登录
+			handleLogout() {
+				uni.showModal({
+					title: '提示',
+					content: '确定要退出登录吗？',
+					success: (res) => {
+						if (res.confirm) {
+							uni.removeStorageSync('token')
+							uni.redirectTo({
+								url: '/pages/login/login'
+							})
+						}
+					}
+				})
+			},
+
+			// 返回功能入口页面
+			goBackToEntry() {
+				uni.redirectTo({ url: '/pages/entry/entry' })
+			}
 		}
 	}
-}
 </script>
 
 <style>
