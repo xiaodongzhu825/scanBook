@@ -2277,7 +2277,7 @@ export default {
 					word_count: this.noIsbnWordCount || '',
 					book_format: '',
 					'live_image[]': imageUrls.join(','),
-					cai_id: JSON.stringify({
+					cat_id: JSON.stringify({
 						xian_yu_cat_id: '',
 						kong_fu_zi_cat_id: (this.noIsbnCategoryPathText || '').replace(/ \/ /g, '/'),
 						pin_duo_duo_cat_id: ''
