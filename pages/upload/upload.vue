@@ -1241,10 +1241,11 @@ export default {
 		},
 		noIsbnUnifyIsbn(val) {
 			// 10位书号（ISBN-10）自动转为13位ISBN填入ISBN字段
-			var result = this.convertIsbn10To13(val)
-			if (result && result !== val.replace(/[-\s]/g, '')) {
+			// 去掉分隔符（-、空格）后检测是否为10位ISBN
+			var clean = (val || '').replace(/[-\s]/g, '')
+			if (clean.length === 10 && /^\d{9}[\dXx]$/i.test(clean)) {
 				if (!this.noIsbnIsbn) {
-					this.noIsbnIsbn = result
+					this.noIsbnIsbn = this.convertIsbn10To13(clean)
 				}
 			}
 		}
@@ -1260,16 +1261,11 @@ export default {
 	},
 
 	methods: {
-		// ISBN-10 转 ISBN-13（自动转换）
-		convertIsbn10To13(isbn) {
-			if (!isbn) return isbn
-			// 去掉连字符和空格
-			var clean = isbn.replace(/[-\s]/g, '')
-			// 只处理10位纯数字（可能有X结尾）
-			var match = clean.match(/^(\d{9})([\dXx])$/)
-			if (!match) return isbn
+		// ISBN-10 转 ISBN-13
+		convertIsbn10To13(clean) {
+			if (!clean || clean.length !== 10) return ''
 			// 前9位 + 前缀978
-			var digits = '978' + match[1]
+			var digits = '978' + clean.slice(0, 9)
 			// 计算ISBN-13校验码
 			var sum = 0
 			for (var i = 0; i < 12; i++) {
