@@ -1238,6 +1238,13 @@ export default {
 		},
 		noIsbnPrintTime() {
 			this.syncNoIsbnPrintTimeIndexes()
+		},
+		noIsbnIsbn(val) {
+			// 检测10位ISBN自动转为13位
+			var result = this.convertIsbn10To13(val)
+			if (result && result !== val) {
+				this.noIsbnIsbn = result
+			}
 		}
 	},
 
@@ -1251,6 +1258,26 @@ export default {
 	},
 
 	methods: {
+		// ISBN-10 转 ISBN-13（自动转换）
+		convertIsbn10To13(isbn) {
+			if (!isbn) return isbn
+			// 去掉连字符和空格
+			var clean = isbn.replace(/[-\s]/g, '')
+			// 只处理10位纯数字（可能有X结尾）
+			var match = clean.match(/^(\d{9})([\dXx])$/)
+			if (!match) return isbn
+			// 前9位 + 前缀978
+			var digits = '978' + match[1]
+			// 计算ISBN-13校验码
+			var sum = 0
+			for (var i = 0; i < 12; i++) {
+				var digit = parseInt(digits[i], 10)
+				sum += i % 2 === 0 ? digit : digit * 3
+			}
+			var check = (10 - (sum % 10)) % 10
+			return digits + check
+		},
+
 		// 标签切换
 		switchTab(tab) {
 			const idx = tab === 'isbn' ? 0 : tab === 'no-isbn' ? 1 : 2
