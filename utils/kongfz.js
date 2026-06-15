@@ -113,9 +113,12 @@ export function searchFacet(keyword, options = {}) {
 						}
 					})
 					const totalFound = parseInt(res.data.data.totalFoundText || res.data.data.matchInfo?.totalFound || 0, 10)
-					resolve({ newCount, oldCount, totalFound })
+					resolve({ newCount, oldCount, totalFound, loginRequired: false })
+				} else if (res.data && res.data.errType === '102') {
+					console.warn('孔夫子统计需要重新登录(errType=102)')
+					resolve({ newCount: 0, oldCount: 0, totalFound: 0, loginRequired: true })
 				} else {
-					resolve({ newCount: 0, oldCount: 0, totalFound: 0 })
+					resolve({ newCount: 0, oldCount: 0, totalFound: 0, loginRequired: false })
 				}
 			},
 			fail: (err) => {
@@ -186,7 +189,7 @@ export function fetchItems(token, params = {}, onProgress) {
  * 搜索孔夫子在售商品（需要登录Cookie）
  * @param {string} keyword ISBN或书名
  * @param {object} options {phpsessid, page}
- * @returns {Promise<{total: number, list: Array}>}
+ * @returns {Promise<{total: number, list: Array, loginRequired: boolean}>}
  * list中每项: {id, title, author, press, priceText, imgBigUrl, shopName, qualityText, pubDateText, postage}
  */
 export function searchProducts(keyword, options = {}) {
@@ -231,13 +234,18 @@ export function searchProducts(keyword, options = {}) {
 					if (itemResp) {
 						resolve({
 							total: itemResp.total || 0,
-							list: itemResp.list || []
+							list: itemResp.list || [],
+							loginRequired: false
 						})
 					} else {
-						resolve({ total: 0, list: [] })
+						resolve({ total: 0, list: [], loginRequired: false })
 					}
+				} else if (res.data && res.data.errType === '102') {
+					// errType 102 = 需要登录
+					console.warn('孔夫子搜索需要重新登录(errType=102)')
+					resolve({ total: 0, list: [], loginRequired: true })
 				} else {
-					resolve({ total: 0, list: [] })
+					resolve({ total: 0, list: [], loginRequired: false })
 				}
 			},
 			fail: (err) => {
