@@ -130,19 +130,14 @@
 </template>
 
 <script>
-	// 读取 manifest.json 中的版本号（uni-app 编译时自动去除注释）
-	var manifestData = {}
-	try {
-		manifestData = require('../../manifest.json')
-	} catch (e) {
-		manifestData = { versionName: '1.0.0' }
-	}
+	// 应用版本号（与 manifest.json versionName 同步更新）
+	var APP_VERSION = '1.0.4'
 
 	export default {
 		data() {
 			return {
 				currentTab: 'home',
-				appVersion: manifestData.versionName || '1.0.0'
+				appVersion: APP_VERSION
 			}
 		},
 
