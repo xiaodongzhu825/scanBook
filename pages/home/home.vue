@@ -150,12 +150,6 @@
 			uni.setNavigationBarTitle({
 				title: '入库助手'
 			})
-			// App 原生模式优先使用 plus.runtime.version
-			try {
-				if (typeof plus !== 'undefined' && plus.runtime && plus.runtime.version) {
-					this.appVersion = plus.runtime.version
-				}
-			} catch (e) {}
 		},
 
 		methods: {
