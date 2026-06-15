@@ -2792,16 +2792,14 @@ export default {
 							}
 							if (texts.书号) {
 								const bookCode = texts.书号.replace(/\D/g, '')
-								if (bookCode.length === 13 && bookCode.startsWith('978')) {
+								if (bookCode.length === 13) {
 									this.noIsbnIsbn = bookCode
-									this.noIsbnUnifyIsbn = ''
 								} else if (bookCode.length === 10 && /^\d{9}[\dXx]$/i.test(bookCode)) {
-									// 10位书号 → 转为13位ISBN
 									this.noIsbnIsbn = this.convertIsbn10To13(bookCode)
-									this.noIsbnUnifyIsbn = ''
 								} else {
-									this.noIsbnUnifyIsbn = texts.书号
+									this.noIsbnIsbn = '678' + String(Date.now()).slice(-10)
 								}
+								this.noIsbnUnifyIsbn = texts.书号
 							}
 							if (texts.字数) this.noIsbnWordCount = this.processNoIsbnWordage(texts.字数)
 
