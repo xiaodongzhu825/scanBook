@@ -1239,11 +1239,13 @@ export default {
 		noIsbnPrintTime() {
 			this.syncNoIsbnPrintTimeIndexes()
 		},
-		noIsbnIsbn(val) {
-			// 检测10位ISBN自动转为13位
+		noIsbnUnifyIsbn(val) {
+			// 10位书号（ISBN-10）自动转为13位ISBN填入ISBN字段
 			var result = this.convertIsbn10To13(val)
-			if (result && result !== val) {
-				this.noIsbnIsbn = result
+			if (result && result !== val.replace(/[-\s]/g, '')) {
+				if (!this.noIsbnIsbn) {
+					this.noIsbnIsbn = result
+				}
 			}
 		}
 	},
