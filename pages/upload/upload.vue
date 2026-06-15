@@ -1343,23 +1343,6 @@ export default {
 				searchFacet(keyword, { phpsessid, dataType: 1 })
 			]).then(([productsData, onSaleFacet, soldFacet]) => {
 				this.isLoading = false
-
-				// 检测孔夫子登录过期
-				if (productsData.loginRequired || onSaleFacet.loginRequired || soldFacet.loginRequired) {
-					uni.showModal({
-						title: '系统提示',
-						content: '孔夫子登录已过期，请重新登录',
-						confirmText: '去登录',
-						success: (modalRes) => {
-							if (modalRes.confirm) {
-								uni.removeStorageSync('kongfz_phpsessid')
-								uni.navigateTo({ url: '/pages/login/login' })
-							}
-						}
-					})
-					return
-				}
-
 				if (productsData && productsData.total > 0) {
 					// 在售商品列表（最多12条）
 					const list = (productsData.list || []).slice(0, 12)
@@ -2581,23 +2564,6 @@ export default {
 				searchFacet(keyword, { phpsessid, dataType: 1 })
 			]).then(([productsData, onSaleFacet, soldFacet]) => {
 				this.noIsbnLoading = false
-
-				// 检测孔夫子登录过期
-				if (productsData.loginRequired || onSaleFacet.loginRequired || soldFacet.loginRequired) {
-					uni.showModal({
-						title: '系统提示',
-						content: '孔夫子登录已过期，请重新登录',
-						confirmText: '去登录',
-						success: (modalRes) => {
-							if (modalRes.confirm) {
-								uni.removeStorageSync('kongfz_phpsessid')
-								uni.navigateTo({ url: '/pages/login/login' })
-							}
-						}
-					})
-					return
-				}
-
 				// 收集作者和出版社选项
 				const authorSet = new Set()
 				const publisherSet = new Set()
@@ -2683,23 +2649,6 @@ export default {
 				author: this.noIsbnAuthor
 			}).then((productsData) => {
 				this.noIsbnLoading = false
-
-				// 检测孔夫子登录过期
-				if (productsData.loginRequired) {
-					uni.showModal({
-						title: '系统提示',
-						content: '孔夫子登录已过期，请重新登录',
-						confirmText: '去登录',
-						success: (modalRes) => {
-							if (modalRes.confirm) {
-								uni.removeStorageSync('kongfz_phpsessid')
-								uni.navigateTo({ url: '/pages/login/login' })
-							}
-						}
-					})
-					return
-				}
-
 				if (productsData && productsData.total > 0) {
 					const list = (productsData.list || []).slice(0, 12)
 					this.noIsbnProductList = list.map(item => {
