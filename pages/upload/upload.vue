@@ -2501,7 +2501,8 @@ export default {
 					if (bindResp.code === 200 && bindResp.data && bindResp.data.receiving_order_id) {
 						return {
 							receiving_order_id: bindResp.data.receiving_order_id,
-							wave_task_batch_no: bindResp.data.wave_task_batch_no || ''
+							wave_task_batch_no: bindResp.data.wave_task_batch_no || '',
+							wave_task_id: bindResp.data.wave_task_id || ''
 						}
 					} else {
 						uni.showToast({ title: '绑定波次: ' + (bindResp.msg || '返回数据异常'), icon: 'none', duration: 3000 })
@@ -2531,6 +2532,7 @@ export default {
 				'items[0][quantity]': stock,
 				'items[0][location_id]': locationId,
 				'items[0][batch_no]': bindResult.wave_task_batch_no,
+				'items[0][wave_task_id]': String(bindResult.wave_task_id),
 				timestamp: timestamp,
 				sign_method: 'md5'
 			}
