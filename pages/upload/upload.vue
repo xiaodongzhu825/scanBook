@@ -2373,15 +2373,14 @@ export default {
 				})
 				console.log('【波次】返回值:', waveRes.statusCode, waveRes.data)
 
-				// 波次创建成功后调用 提交波次 + 绑定波次
 				if (waveRes.statusCode === 200 && waveRes.data) {
 					var waveResp = waveRes.data
 					if (typeof waveResp === 'string') {
 						try { waveResp = JSON.parse(waveResp) } catch (e) { waveResp = {} }
 					}
-					var waveId = waveResp.data && waveResp.data.wave_id
-					var orderId = waveResp.data && waveResp.data.order_id
-					if (waveId && orderId) {
+					if (waveResp.code === 200 && waveResp.data && waveResp.data.wave_id && waveResp.data.order_id) {
+						var waveId = waveResp.data.wave_id
+						var orderId = waveResp.data.order_id
 						// 1. 提交波次，获取 wave_no
 						var releaseWaveNo = await this.callWaveReleaseApi(timestamp, waveId, orderId, carInfo, productId, stock, price)
 						// 2. 绑定波次（使用 release 返回的 wave_no）
@@ -2392,10 +2391,15 @@ export default {
 								await this.callReceiveSubmitApi(timestamp, bindResult, productId, stock, warehouseData)
 							}
 						}
+					} else {
+						uni.showToast({ title: '创建波次: ' + (waveResp.msg || '返回数据异常'), icon: 'none', duration: 3000 })
 					}
+				} else {
+					uni.showToast({ title: '创建波次: 请求失败 HTTP ' + waveRes.statusCode, icon: 'none', duration: 3000 })
 				}
 			} catch (e) {
 				console.warn('【波次】请求失败:', e)
+				uni.showToast({ title: '创建波次: 网络请求失败', icon: 'none', duration: 3000 })
 			}
 		},
 
@@ -2439,13 +2443,18 @@ export default {
 					if (typeof releaseResp === 'string') {
 						try { releaseResp = JSON.parse(releaseResp) } catch (e) { releaseResp = {} }
 					}
-					if (releaseResp.data && releaseResp.data.wave_no) {
+					if (releaseResp.code === 200 && releaseResp.data && releaseResp.data.wave_no) {
 						return releaseResp.data.wave_no
+					} else {
+						uni.showToast({ title: '提交波次: ' + (releaseResp.msg || '返回数据异常'), icon: 'none', duration: 3000 })
 					}
+				} else {
+					uni.showToast({ title: '提交波次: 请求失败 HTTP ' + res.statusCode, icon: 'none', duration: 3000 })
 				}
 				return ''
 			} catch (e) {
 				console.warn('【提交波次】请求失败:', e)
+				uni.showToast({ title: '提交波次: 网络请求失败', icon: 'none', duration: 3000 })
 				return ''
 			}
 		},
@@ -2489,16 +2498,21 @@ export default {
 					if (typeof bindResp === 'string') {
 						try { bindResp = JSON.parse(bindResp) } catch (e) { bindResp = {} }
 					}
-					if (bindResp.data && bindResp.data.receiving_order_id) {
+					if (bindResp.code === 200 && bindResp.data && bindResp.data.receiving_order_id) {
 						return {
 							receiving_order_id: bindResp.data.receiving_order_id,
 							wave_task_batch_no: bindResp.data.wave_task_batch_no || ''
 						}
+					} else {
+						uni.showToast({ title: '绑定波次: ' + (bindResp.msg || '返回数据异常'), icon: 'none', duration: 3000 })
 					}
+				} else {
+					uni.showToast({ title: '绑定波次: 请求失败 HTTP ' + res.statusCode, icon: 'none', duration: 3000 })
 				}
 				return null
 			} catch (e) {
 				console.warn('【绑定波次】请求失败:', e)
+				uni.showToast({ title: '绑定波次: 网络请求失败', icon: 'none', duration: 3000 })
 				return null
 			}
 		},
@@ -2538,8 +2552,21 @@ export default {
 					})
 				})
 				console.log('【提交入库】返回值:', res.statusCode, res.data)
+
+				if (res.statusCode === 200 && res.data) {
+					var submitResp = res.data
+					if (typeof submitResp === 'string') {
+						try { submitResp = JSON.parse(submitResp) } catch (e) { submitResp = {} }
+					}
+					if (submitResp.code !== 200) {
+						uni.showToast({ title: '提交入库: ' + (submitResp.msg || '返回数据异常'), icon: 'none', duration: 3000 })
+					}
+				} else {
+					uni.showToast({ title: '提交入库: 请求失败 HTTP ' + res.statusCode, icon: 'none', duration: 3000 })
+				}
 			} catch (e) {
 				console.warn('【提交入库】请求失败:', e)
+				uni.showToast({ title: '提交入库: 网络请求失败', icon: 'none', duration: 3000 })
 			}
 		},
 
@@ -2579,6 +2606,10 @@ export default {
 						var firstCar = list[0]
 						return { car_id: firstCar.id, car_code: firstCar.code }
 					}
+				} else if (res.data && res.data.code !== 0) {
+					uni.showToast({ title: '获取小车列表: ' + (res.data.msg || '查询失败'), icon: 'none', duration: 3000 })
+				} else if (res.statusCode !== 200) {
+					uni.showToast({ title: '获取小车列表: 请求失败 HTTP ' + res.statusCode, icon: 'none', duration: 3000 })
 				}
 
 				// 无小车 → 弹窗提示，返回 null
