@@ -2328,8 +2328,12 @@ export default {
 
 			const token = uni.getStorageSync('token') || ''
 
-			// 先查询小车列表
-			await this.callCarListApi(timestamp)
+			// 先查询小车列表，获取 car_id / car_code
+			var carInfo = await this.callCarListApi(timestamp)
+			if (!carInfo) {
+				// 无小车时 callCarListApi 已弹窗提示，此处直接返回
+				return
+			}
 
 			// 调用波次接口
 			const params = {
@@ -2340,8 +2344,8 @@ export default {
 				'items[0][quantity]': stock,
 				'items[0][unit_price]': price,
 				direction: '1',
-				car_id: '',
-				car_code: '',
+				car_id: String(carInfo.car_id),
+				car_code: String(carInfo.car_code),
 				timestamp: timestamp,
 				sign_method: 'md5'
 			}
@@ -2373,7 +2377,7 @@ export default {
 			}
 		},
 
-		// 查看小车列表
+		// 查看小车列表，返回第一个小车的 {car_id, car_code}，无小车时弹窗提示返回 null
 		async callCarListApi(timestamp) {
 			const token = uni.getStorageSync('token') || ''
 			const params = {
@@ -2391,7 +2395,7 @@ export default {
 				const res = await new Promise(function (resolve, reject) {
 					uni.request({
 						url: 'https://psi.api.buzhiyushu.cn/api/car/list',
-						method: 'POST',
+						method: 'GET',
 						header: {
 							'Content-Type': 'application/x-www-form-urlencoded',
 							'Authorization': 'Bearer ' + token
@@ -2402,8 +2406,30 @@ export default {
 					})
 				})
 				console.log('【小车列表】返回值:', res.statusCode, res.data)
+
+				if (res.statusCode === 200 && res.data && res.data.code === 0 && res.data.data) {
+					var list = res.data.data.list || []
+					if (list.length > 0) {
+						var firstCar = list[0]
+						return { car_id: firstCar.id, car_code: firstCar.code }
+					}
+				}
+
+				// 无小车 → 弹窗提示，返回 null
+				uni.showModal({
+					title: '系统提示',
+					content: '当前没有可用的购物车，请先创建购物车',
+					showCancel: false
+				})
+				return null
 			} catch (e) {
 				console.warn('【小车列表】请求失败:', e)
+				uni.showModal({
+					title: '系统提示',
+					content: '获取购物车列表失败，请稍后重试',
+					showCancel: false
+				})
+				return null
 			}
 		},
 
