@@ -2532,20 +2532,13 @@ export default {
 				'items[0][quantity]': stock,
 				'items[0][location_id]': locationId,
 				'items[0][batch_no]': bindResult.wave_task_batch_no,
-				'items[0][wave_task_id]': String(bindResult.wave_task_id),
+				wave_task_id: String(bindResult.wave_task_id),
 				timestamp: timestamp,
 				sign_method: 'md5'
 			}
 			var sign = calculateSign(params)
 			params.sign = sign
 
-			// 手动构建 form-urlencoded 字符串，确保 bracket 键名原样发送
-			var bodyParts = []
-			for (var key in params) {
-				bodyParts.push(key + '=' + encodeURIComponent(String(params[key])))
-			}
-			var formBody = bodyParts.join('&')
-			console.log('【提交入库】form-body:', formBody)
 			console.log('【提交入库】请求地址:', 'https://psi.api.buzhiyushu.cn/api/receiving/submit')
 			console.log('【提交入库】请求参数:', params)
 
@@ -2558,7 +2551,7 @@ export default {
 							'Content-Type': 'application/x-www-form-urlencoded',
 							'Authorization': 'Bearer ' + token
 						},
-						data: formBody,
+						data: params,
 						success: function (r) { resolve(r) },
 						fail: function (e) { reject(e) }
 					})
