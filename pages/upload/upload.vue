@@ -2546,6 +2546,8 @@ export default {
 			}
 			var formBody = bodyParts.join('&')
 			console.log('【提交入库】form-body:', formBody)
+			console.log('【提交入库】请求地址:', 'https://psi.api.buzhiyushu.cn/api/receiving/submit')
+			console.log('【提交入库】请求参数:', params)
 
 			try {
 				const res = await new Promise(function (resolve, reject) {
