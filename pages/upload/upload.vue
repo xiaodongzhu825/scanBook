@@ -2373,19 +2373,62 @@ export default {
 				})
 				console.log('【波次】返回值:', waveRes.statusCode, waveRes.data)
 
-				// 波次创建成功后调用绑定波次接口
+				// 波次创建成功后调用 提交波次 + 绑定波次
 				if (waveRes.statusCode === 200 && waveRes.data) {
 					var waveResp = waveRes.data
 					if (typeof waveResp === 'string') {
 						try { waveResp = JSON.parse(waveResp) } catch (e) { waveResp = {} }
 					}
 					var waveId = waveResp.data && waveResp.data.wave_id
-					if (waveId) {
+					var orderId = waveResp.data && waveResp.data.order_id
+					if (waveId && orderId) {
+						// 1. 提交波次
+						await this.callWaveReleaseApi(timestamp, waveId, orderId, carInfo, productId, stock, price)
+						// 2. 绑定波次
 						await this.callBindWaveApi(timestamp, waveId)
 					}
 				}
 			} catch (e) {
 				console.warn('【波次】请求失败:', e)
+			}
+		},
+
+		// 提交波次（波次创建成功后调用）
+		async callWaveReleaseApi(timestamp, waveId, orderId, carInfo, productId, stock, price) {
+			const token = uni.getStorageSync('token') || ''
+			const params = {
+				app_key: 'psi',
+				client_id: 'psi',
+				wave_id: String(waveId),
+				related_order_id: String(orderId),
+				car_id: String(carInfo.car_id),
+				car_code: String(carInfo.car_code),
+				'items[0][product_id]': String(productId),
+				'items[0][quantity]': stock,
+				'items[0][unit_price]': price,
+				timestamp: timestamp,
+				sign_method: 'md5'
+			}
+			var sign = calculateSign(params)
+			params.sign = sign
+
+			try {
+				const res = await new Promise(function (resolve, reject) {
+					uni.request({
+						url: 'https://psi.api.buzhiyushu.cn/api/wave/release',
+						method: 'POST',
+						header: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							'Authorization': 'Bearer ' + token
+						},
+						data: params,
+						success: function (r) { resolve(r) },
+						fail: function (e) { reject(e) }
+					})
+				})
+				console.log('【提交波次】返回值:', res.statusCode, res.data)
+			} catch (e) {
+				console.warn('【提交波次】请求失败:', e)
 			}
 		},
 
