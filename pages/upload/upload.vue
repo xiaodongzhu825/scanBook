@@ -2539,6 +2539,14 @@ export default {
 			var sign = calculateSign(params)
 			params.sign = sign
 
+			// 手动构建 form-urlencoded 字符串，确保 bracket 键名原样发送
+			var bodyParts = []
+			for (var key in params) {
+				bodyParts.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(params[key])))
+			}
+			var formBody = bodyParts.join('&')
+			console.log('【提交入库】form-body:', formBody)
+
 			try {
 				const res = await new Promise(function (resolve, reject) {
 					uni.request({
@@ -2548,7 +2556,7 @@ export default {
 							'Content-Type': 'application/x-www-form-urlencoded',
 							'Authorization': 'Bearer ' + token
 						},
-						data: params,
+						data: formBody,
 						success: function (r) { resolve(r) },
 						fail: function (e) { reject(e) }
 					})
