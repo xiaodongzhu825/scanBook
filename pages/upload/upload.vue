@@ -2382,10 +2382,12 @@ export default {
 					var waveId = waveResp.data && waveResp.data.wave_id
 					var orderId = waveResp.data && waveResp.data.order_id
 					if (waveId && orderId) {
-						// 1. 提交波次
-						await this.callWaveReleaseApi(timestamp, waveId, orderId, carInfo, productId, stock, price)
-						// 2. 绑定波次
-						await this.callBindWaveApi(timestamp, waveId)
+						// 1. 提交波次，获取 wave_no
+						var releaseWaveNo = await this.callWaveReleaseApi(timestamp, waveId, orderId, carInfo, productId, stock, price)
+						// 2. 绑定波次（使用 release 返回的 wave_no）
+						if (releaseWaveNo) {
+							await this.callBindWaveApi(timestamp, releaseWaveNo)
+						}
 					}
 				}
 			} catch (e) {
@@ -2393,7 +2395,7 @@ export default {
 			}
 		},
 
-		// 提交波次（波次创建成功后调用）
+		// 提交波次（波次创建成功后调用），返回 wave_no
 		async callWaveReleaseApi(timestamp, waveId, orderId, carInfo, productId, stock, price) {
 			const token = uni.getStorageSync('token') || ''
 			const params = {
@@ -2427,20 +2429,32 @@ export default {
 					})
 				})
 				console.log('【提交波次】返回值:', res.statusCode, res.data)
+
+				if (res.statusCode === 200 && res.data) {
+					var releaseResp = res.data
+					if (typeof releaseResp === 'string') {
+						try { releaseResp = JSON.parse(releaseResp) } catch (e) { releaseResp = {} }
+					}
+					if (releaseResp.data && releaseResp.data.wave_no) {
+						return releaseResp.data.wave_no
+					}
+				}
+				return ''
 			} catch (e) {
 				console.warn('【提交波次】请求失败:', e)
+				return ''
 			}
 		},
 
-		// 绑定波次（波次创建成功后调用）
-		async callBindWaveApi(timestamp, waveId) {
+		// 绑定波次（提交波次成功后调用）
+		async callBindWaveApi(timestamp, waveNo) {
 			const token = uni.getStorageSync('token') || ''
 			var operatorName = uni.getStorageSync('nickName') || ''
 			var operatorId = uni.getStorageSync('aboutId') || ''
 			const params = {
 				app_key: 'psi',
 				client_id: 'psi',
-				wave_no: String(waveId),
+				wave_no: String(waveNo),
 				operator: operatorName,
 				operator_id: String(operatorId),
 				remark: 'app',
