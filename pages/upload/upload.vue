@@ -2386,7 +2386,11 @@ export default {
 						var releaseWaveNo = await this.callWaveReleaseApi(timestamp, waveId, orderId, carInfo, productId, stock, price)
 						// 2. 绑定波次（使用 release 返回的 wave_no）
 						if (releaseWaveNo) {
-							await this.callBindWaveApi(timestamp, releaseWaveNo)
+							var bindResult = await this.callBindWaveApi(timestamp, releaseWaveNo)
+							// 3. 提交入库（使用 bind-wave 返回的数据）
+							if (bindResult) {
+								await this.callReceiveSubmitApi(timestamp, bindResult, productId, stock, warehouseData)
+							}
 						}
 					}
 				}
@@ -2446,7 +2450,7 @@ export default {
 			}
 		},
 
-		// 绑定波次（提交波次成功后调用）
+		// 绑定波次（提交波次成功后调用），返回 { receiving_order_id, wave_task_batch_no }
 		async callBindWaveApi(timestamp, waveNo) {
 			const token = uni.getStorageSync('token') || ''
 			var operatorName = uni.getStorageSync('nickName') || ''
@@ -2479,8 +2483,63 @@ export default {
 					})
 				})
 				console.log('【绑定波次】返回值:', res.statusCode, res.data)
+
+				if (res.statusCode === 200 && res.data) {
+					var bindResp = res.data
+					if (typeof bindResp === 'string') {
+						try { bindResp = JSON.parse(bindResp) } catch (e) { bindResp = {} }
+					}
+					if (bindResp.data && bindResp.data.receiving_order_id) {
+						return {
+							receiving_order_id: bindResp.data.receiving_order_id,
+							wave_task_batch_no: bindResp.data.wave_task_batch_no || ''
+						}
+					}
+				}
+				return null
 			} catch (e) {
 				console.warn('【绑定波次】请求失败:', e)
+				return null
+			}
+		},
+
+		// 提交入库（bind-wave 成功后调用）
+		async callReceiveSubmitApi(timestamp, bindResult, productId, stock, warehouseData) {
+			const token = uni.getStorageSync('token') || ''
+			var locationId = warehouseData && warehouseData.locationId
+				? String(warehouseData.locationId)
+				: (warehouseData && warehouseData.id ? String(warehouseData.id) : '')
+			const params = {
+				app_key: 'psi',
+				client_id: 'psi',
+				receiving_order_id: String(bindResult.receiving_order_id),
+				'items[0][product_id]': String(productId),
+				'items[0][quantity]': stock,
+				'items[0][location_id]': locationId,
+				'items[0][batch_no]': bindResult.wave_task_batch_no,
+				timestamp: timestamp,
+				sign_method: 'md5'
+			}
+			var sign = calculateSign(params)
+			params.sign = sign
+
+			try {
+				const res = await new Promise(function (resolve, reject) {
+					uni.request({
+						url: 'https://psi.api.buzhiyushu.cn/api/receiving/submit',
+						method: 'POST',
+						header: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							'Authorization': 'Bearer ' + token
+						},
+						data: params,
+						success: function (r) { resolve(r) },
+						fail: function (e) { reject(e) }
+					})
+				})
+				console.log('【提交入库】返回值:', res.statusCode, res.data)
+			} catch (e) {
+				console.warn('【提交入库】请求失败:', e)
 			}
 		},
 
