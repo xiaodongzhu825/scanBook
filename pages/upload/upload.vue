@@ -2542,7 +2542,7 @@ export default {
 			// 手动构建 form-urlencoded 字符串，确保 bracket 键名原样发送
 			var bodyParts = []
 			for (var key in params) {
-				bodyParts.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(params[key])))
+				bodyParts.push(key + '=' + encodeURIComponent(String(params[key])))
 			}
 			var formBody = bodyParts.join('&')
 			console.log('【提交入库】form-body:', formBody)
