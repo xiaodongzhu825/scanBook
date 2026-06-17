@@ -2326,6 +2326,12 @@ export default {
 				? String(this.stock ?? '1')
 				: String(this.noIsbnStock ?? '1')
 
+			const token = uni.getStorageSync('token') || ''
+
+			// 先查询小车列表
+			await this.callCarListApi(timestamp)
+
+			// 调用波次接口
 			const params = {
 				app_key: 'psi',
 				client_id: 'psi',
@@ -2334,6 +2340,8 @@ export default {
 				'items[0][quantity]': stock,
 				'items[0][unit_price]': price,
 				direction: '1',
+				car_id: '',
+				car_code: '',
 				timestamp: timestamp,
 				sign_method: 'md5'
 			}
@@ -2341,7 +2349,6 @@ export default {
 			var sign = calculateSign(params)
 			params.sign = sign
 
-			const token = uni.getStorageSync('token') || ''
 			var waveUrl = 'https://psi.api.buzhiyushu.cn/api/purchase-order/create-with-wave'
 			console.log('【波次】请求地址:', waveUrl)
 			console.log('【波次】请求参数:', params)
@@ -2363,6 +2370,40 @@ export default {
 				console.log('【波次】返回值:', waveRes.statusCode, waveRes.data)
 			} catch (e) {
 				console.warn('【波次】请求失败:', e)
+			}
+		},
+
+		// 查看小车列表
+		async callCarListApi(timestamp) {
+			const token = uni.getStorageSync('token') || ''
+			const params = {
+				app_key: 'psi',
+				client_id: 'psi',
+				page: '1',
+				page_size: '999999',
+				timestamp: timestamp,
+				sign_method: 'md5'
+			}
+			var sign = calculateSign(params)
+			params.sign = sign
+
+			try {
+				const res = await new Promise(function (resolve, reject) {
+					uni.request({
+						url: 'https://psi.api.buzhiyushu.cn/api/car/list',
+						method: 'POST',
+						header: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							'Authorization': 'Bearer ' + token
+						},
+						data: params,
+						success: function (r) { resolve(r) },
+						fail: function (e) { reject(e) }
+					})
+				})
+				console.log('【小车列表】返回值:', res.statusCode, res.data)
+			} catch (e) {
+				console.warn('【小车列表】请求失败:', e)
 			}
 		},
 
