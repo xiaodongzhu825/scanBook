@@ -2065,43 +2065,50 @@ export default {
 			this.isSubmitting = true
 			uni.showLoading({ title: '上传中...', mask: true })
 			try {
-				console.log('【上传】MinIO图片URL列表:', imageUrls)
+				var timestamp = String(Math.floor(Date.now() / 1000))
 
-				// 品相纯数字
-				const conditionDisplay = (this.currentTab === 'isbn' ? this.conditionValue : this.noIsbnConditionValue).replace('~', '')
-
-				// 构建 form-data 参数
-				const userId = uni.getStorageSync('aboutId') || ''
-				const apiData = {
-					user_id: userId,
-					warehouse_id: String(warehouseData.warehouseId || ''),
-					location_id: String(warehouseData.locationId || ''),
-					isbn: '',
-					price: '',
-					stock: '',
-					appearance: conditionDisplay,
-					product_name: '',
-					photos: imageUrls
+				// 出版时间转时间戳
+				var pubTimeStr = this.printTime || ''
+				var pubTimestamp = '0'
+				if (pubTimeStr) {
+					var parts = pubTimeStr.split('-')
+					if (parts.length >= 2) {
+						var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1)
+						var ts = Math.floor(d.getTime() / 1000)
+						if (ts >= 0) { pubTimestamp = String(ts) }
+					}
 				}
 
-				if (this.currentTab === 'isbn') {
-					apiData.isbn = this.isbn || ''
-					apiData.price = this.price ? String(Math.round(parseFloat(this.price) * 100)) : ''
-					apiData.stock = String(this.stock ?? '')
-					apiData.product_name = this.bookName || ''
-				} else {
-					apiData.isbn = this.noIsbnIsbn || this.noIsbnUnifyIsbn || ''
-					apiData.price = this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : ''
-					apiData.stock = String(this.noIsbnStock ?? '')
-					apiData.product_name = this.noIsbnBookName || ''
+				const params = {
+					app_key: 'psi',
+					client_id: 'psi',
+					fid: '0',
+					type: '4',
+					isbn: this.isbn || '',
+					f_isbn: '0',
+					book_name: this.bookName || '',
+					f_book_name: '',
+					author: this.author || '',
+					publisher: this.publisher || '',
+					publication_time: pubTimestamp,
+					binding_layout: '',
+					fix_price: this.price ? String(Math.round(parseFloat(this.price) * 100)) : '',
+					page_count: '0',
+					word_count: '',
+					book_format: '',
+					'live_image[]': imageUrls.join(','),
+					timestamp: timestamp,
+					sign_method: 'md5'
 				}
 
-				// 调用 API 推送到店铺
-				const apiUrl = 'https://psi.api.buzhiyushu.cn/api/product/pushToShop'
+				var sign = calculateSign(params)
+				params.sign = sign
+
+				const apiUrl = 'https://psi.api.buzhiyushu.cn/api/syncBook'
 				const token = uni.getStorageSync('token') || ''
-				console.log('【上传】推送API:', apiUrl, apiData)
+				console.log('【syncBook】请求地址:', apiUrl)
+				console.log('【syncBook】请求参数:', params)
 
-				// 使用 uni.request 以 form-urlencoded 方式发送
 				const res = await new Promise(function (resolve, reject) {
 					uni.request({
 						url: apiUrl,
@@ -2110,31 +2117,19 @@ export default {
 							'Content-Type': 'application/x-www-form-urlencoded',
 							'Authorization': 'Bearer ' + token
 						},
-						data: {
-							user_id: apiData.user_id,
-							warehouse_id: apiData.warehouse_id,
-							location_id: apiData.location_id,
-							isbn: apiData.isbn,
-							price: apiData.price,
-							stock: apiData.stock,
-							appearance: apiData.appearance,
-							product_name: apiData.product_name,
-							photos: apiData.photos.join(',')
-						},
+						data: params,
 						success: function (r) { resolve(r) },
 						fail: function (e) { reject(e) }
 					})
 				})
 
-				console.log('【上传】API响应:', res.statusCode, res.data)
-
+				console.log('【syncBook】返回值:', res.statusCode, res.data)
 				uni.hideLoading()
 
 				if (res.statusCode !== 200) {
 					throw new Error('API返回: HTTP ' + res.statusCode)
 				}
 
-				// 解析 JSON 响应
 				var respData = res.data
 				if (typeof respData === 'string') {
 					try { respData = JSON.parse(respData) } catch (e) { respData = { code: 500, msg: respData } }
@@ -2146,47 +2141,13 @@ export default {
 					throw new Error(respData && respData.msg || '上传失败')
 				}
 
-				// pushToShop 成功后，调用 releaseGoodsAuto API
-				var pushData = respData.data || {}
-				var goodsUserId = uni.getStorageSync('aboutId') || ''
-				var goodsWarehouseId = pushData.warehouse_id
-				var goodsProductId = pushData.product_id
-				if (goodsUserId && goodsWarehouseId && goodsProductId) {
-					console.log('【上传】调用releaseGoodsAuto:', goodsUserId, goodsWarehouseId, goodsProductId)
-					var releaseUrl = 'https://api.buzhiyushu.cn/zhishu/product/releaseGoodsAuto'
-					// 手动构建 multipart/form-data 正文（兼容 App 环境，FormData 不可用）
-					var boundary = '----Boundary' + Math.random().toString(36).slice(2)
-					var bodyArr = []
-					var appendField = function(name, val) {
-						bodyArr.push('--' + boundary)
-						bodyArr.push('Content-Disposition: form-data; name="' + name + '"')
-						bodyArr.push('')
-						bodyArr.push(String(val))
-					}
-					appendField('userId', goodsUserId)
-					appendField('warehouseId', goodsWarehouseId)
-					appendField('productId', goodsProductId)
-					bodyArr.push('--' + boundary + '--')
-					var formBody = bodyArr.join('\r\n')
-					console.log('【上传】releaseGoodsAuto请求地址:', releaseUrl)
-					console.log('【上传】releaseGoodsAuto请求参数:', { userId: String(goodsUserId), warehouseId: String(goodsWarehouseId), productId: String(goodsProductId) })
-					uni.request({
-						url: releaseUrl,
-						method: 'POST',
-						header: {
-							'Content-Type': 'multipart/form-data; boundary=' + boundary,
-							'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg=='
-						},
-						data: formBody,
-						success: function (r2) {
-							console.log('【上传】releaseGoodsAuto响应:', r2.statusCode, r2.data)
-						},
-						fail: function (e2) {
-							console.warn('【上传】releaseGoodsAuto失败:', JSON.stringify(e2))
-						}
-					})
+				// syncBook 成功后调用波次接口
+				var syncData = respData.data || {}
+				var productId = syncData.product_id || syncData.id || ''
+				if (warehouseData && productId) {
+					await this.callWaveApi(warehouseData, productId)
 				} else {
-					console.warn('【上传】pushToShop返回缺少data字段,跳过releaseGoodsAuto')
+					console.warn('【syncBook】缺少warehouseData或productId,跳过波次')
 				}
 
 				// 保存上传记录到本地
@@ -2197,37 +2158,21 @@ export default {
 					type: this.currentTab,
 					apiUrl: apiUrl,
 					apiResponse: res.data,
-					data: apiData
+					data: params
 				})
 				uni.setStorageSync('uploadHistory', uploadHistory.slice(0, 100))
 
 				// 清空表单
-				if (this.currentTab === 'isbn') {
-					this.photoList = []
-					this.isbn = ''
-					this.bookName = ''
-					this.price = ''
-					this.stock = 1
-					this.author = ''
-					this.publisher = ''
-					this.fixPrice = ''
-					this.printTime = ''
-					this.productList = []
-				} else {
-					this.noIsbnPhotoList = []
-					this.noIsbnBookName = ''
-					this.noIsbnPrice = ''
-					this.noIsbnStock = 1
-					this.noIsbnAuthor = ''
-					this.noIsbnPublisher = ''
-					this.noIsbnOriginalPrice = ''
-					this.noIsbnIsbn = ''
-					this.noIsbnUnifyIsbn = ''
-					this.noIsbnPrintTime = ''
-					this.noIsbnFormat = ''
-					this.noIsbnBinding = ''
-					this.noIsbnProductList = []
-				}
+				this.photoList = []
+				this.isbn = ''
+				this.bookName = ''
+				this.author = ''
+				this.publisher = ''
+				this.fixPrice = ''
+				this.price = ''
+				this.stock = 1
+				this.printTime = ''
+				this.productList = []
 			} catch (e) {
 				uni.hideLoading()
 				console.error('【上传】失败:', e)
@@ -2327,100 +2272,13 @@ export default {
 					throw new Error(respData && respData.msg || '上传失败')
 				}
 
-				// syncBook 成功后调用 pushToShop 推送到店铺
-				try {
-					const warehouseData = this.noIsbnWarehouseData
-					const conditionDisplay = this.noIsbnConditionValue.replace('~', '')
-					const userId = uni.getStorageSync('aboutId') || ''
-					const tokenPush = uni.getStorageSync('token') || ''
-					const pushUrl = 'https://psi.api.buzhiyushu.cn/api/product/pushToShop'
-					const pushData = {
-						user_id: userId,
-						warehouse_id: String(warehouseData.warehouseId || ''),
-						location_id: String(warehouseData.locationId || ''),
-						isbn: (respData.data && (respData.data.isbn || '')) || this.noIsbnIsbn || this.noIsbnUnifyIsbn || '',
-						price: this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '',
-						stock: String(this.noIsbnStock ?? ''),
-						appearance: conditionDisplay,
-						product_name: this.noIsbnBookName || '',
-						photos: imageUrls.join(',')
-					}
-					console.log('【syncBook】pushToShop请求地址:', pushUrl)
-					console.log('【syncBook】pushToShop请求参数:', pushData)
-					const pushRes = await new Promise(function (resolve, reject) {
-						uni.request({
-							url: pushUrl,
-							method: 'POST',
-							header: {
-								'Content-Type': 'application/x-www-form-urlencoded',
-								'Authorization': 'Bearer ' + tokenPush
-							},
-							data: pushData,
-							success: function (r) { resolve(r) },
-							fail: function (e) { reject(e) }
-						})
-					})
-					console.log('【syncBook】pushToShop返回值:', pushRes.statusCode, pushRes.data)
-
-					// pushToShop 成功后，调用 releaseGoodsAuto API
-					if (pushRes.statusCode === 200) {
-						var pushRespData = pushRes.data
-						if (typeof pushRespData === 'string') {
-							try { pushRespData = JSON.parse(pushRespData) } catch (e) { pushRespData = {} }
-						}
-						if (pushRespData && pushRespData.code === 200) {
-							var pushRespInner = pushRespData.data || {}
-							var goodsUserId2 = uni.getStorageSync('aboutId') || ''
-							var goodsWarehouseId2 = pushRespInner.warehouse_id
-							var goodsProductId2 = pushRespInner.product_id
-							if (goodsUserId2 && goodsWarehouseId2 && goodsProductId2) {
-								console.log('【syncBook】调用releaseGoodsAuto:', goodsUserId2, goodsWarehouseId2, goodsProductId2)
-								var releaseUrl2 = 'https://api.buzhiyushu.cn/zhishu/product/releaseGoodsAuto'
-								var boundary2 = '----Boundary' + Math.random().toString(36).slice(2)
-								var bodyArr2 = []
-								var appendField2 = function(name, val) {
-									bodyArr2.push('--' + boundary2)
-									bodyArr2.push('Content-Disposition: form-data; name="' + name + '"')
-									bodyArr2.push('')
-									bodyArr2.push(String(val))
-								}
-								appendField2('userId', goodsUserId2)
-								appendField2('warehouseId', goodsWarehouseId2)
-								appendField2('productId', goodsProductId2)
-								bodyArr2.push('--' + boundary2 + '--')
-								var formBody2 = bodyArr2.join('\r\n')
-								console.log('【syncBook】releaseGoodsAuto请求地址:', releaseUrl2)
-								console.log('【syncBook】releaseGoodsAuto请求参数:', { userId: String(goodsUserId2), warehouseId: String(goodsWarehouseId2), productId: String(goodsProductId2) })
-								uni.request({
-									url: releaseUrl2,
-									method: 'POST',
-									header: {
-										'Content-Type': 'multipart/form-data; boundary=' + boundary2,
-										'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg=='
-									},
-									data: formBody2,
-									success: function (r3) {
-										console.log('【syncBook】releaseGoodsAuto响应:', r3.statusCode, r3.data)
-									},
-									fail: function (e3) {
-										console.warn('【syncBook】releaseGoodsAuto失败:', JSON.stringify(e3))
-									}
-								})
-							} else {
-								console.warn('【syncBook】pushToShop返回缺少warehouse_id/product_id,跳过releaseGoodsAuto')
-							}
-						} else if (pushRespData && pushRespData.msg) {
-							// code 非 200，显示错误信息
-							uni.showToast({ title: pushRespData.msg, icon: 'none', duration: 3000 })
-						}
-					} else {
-						// HTTP 非 200
-						var errMsg = 'pushToShop请求失败: HTTP ' + pushRes.statusCode
-						console.error('【syncBook】' + errMsg)
-						uni.showToast({ title: errMsg, icon: 'none', duration: 3000 })
-					}
-				} catch (ePush) {
-					console.warn('【syncBook】pushToShop失败:', ePush)
+				// syncBook 成功后调用波次接口
+				var syncData = respData.data || {}
+				var productId = syncData.product_id || syncData.id || ''
+				if (this.noIsbnWarehouseData && productId) {
+					await this.callWaveApi(this.noIsbnWarehouseData, productId)
+				} else {
+					console.warn('【syncBook】缺少warehouseData或productId,跳过波次')
 				}
 
 				// 保存上传记录到本地
@@ -2455,6 +2313,56 @@ export default {
 				uni.showToast({ title: e.message || '上传失败', icon: 'none', duration: 3000 })
 			} finally {
 				this.isSubmitting = false
+			}
+		},
+
+		// 调用波次接口（syncBook 成功后调用）
+		async callWaveApi(warehouseData, productId) {
+			var timestamp = String(Math.floor(Date.now() / 1000))
+			var price = this.currentTab === 'isbn'
+				? (this.price ? String(Math.round(parseFloat(this.price) * 100)) : '0')
+				: (this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '0')
+			var stock = this.currentTab === 'isbn'
+				? String(this.stock ?? '1')
+				: String(this.noIsbnStock ?? '1')
+
+			const params = {
+				app_key: 'psi',
+				client_id: 'psi',
+				warehouse_id: String(warehouseData.warehouseId || ''),
+				'items[0][product_id]': String(productId),
+				'items[0][quantity]': stock,
+				'items[0][unit_price]': price,
+				direction: '1',
+				timestamp: timestamp,
+				sign_method: 'md5'
+			}
+
+			var sign = calculateSign(params)
+			params.sign = sign
+
+			const token = uni.getStorageSync('token') || ''
+			var waveUrl = 'https://psi.api.buzhiyushu.cn/api/purchase-order/create-with-wave'
+			console.log('【波次】请求地址:', waveUrl)
+			console.log('【波次】请求参数:', params)
+
+			try {
+				const waveRes = await new Promise(function (resolve, reject) {
+					uni.request({
+						url: waveUrl,
+						method: 'POST',
+						header: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							'Authorization': 'Bearer ' + token
+						},
+						data: params,
+						success: function (r) { resolve(r) },
+						fail: function (e) { reject(e) }
+					})
+				})
+				console.log('【波次】返回值:', waveRes.statusCode, waveRes.data)
+			} catch (e) {
+				console.warn('【波次】请求失败:', e)
 			}
 		},
 
