@@ -2372,8 +2372,58 @@ export default {
 					})
 				})
 				console.log('【波次】返回值:', waveRes.statusCode, waveRes.data)
+
+				// 波次创建成功后调用绑定波次接口
+				if (waveRes.statusCode === 200 && waveRes.data) {
+					var waveResp = waveRes.data
+					if (typeof waveResp === 'string') {
+						try { waveResp = JSON.parse(waveResp) } catch (e) { waveResp = {} }
+					}
+					var waveId = waveResp.data && waveResp.data.wave_id
+					if (waveId) {
+						await this.callBindWaveApi(timestamp, waveId)
+					}
+				}
 			} catch (e) {
 				console.warn('【波次】请求失败:', e)
+			}
+		},
+
+		// 绑定波次（波次创建成功后调用）
+		async callBindWaveApi(timestamp, waveId) {
+			const token = uni.getStorageSync('token') || ''
+			var operatorName = uni.getStorageSync('nickName') || ''
+			var operatorId = uni.getStorageSync('aboutId') || ''
+			const params = {
+				app_key: 'psi',
+				client_id: 'psi',
+				wave_no: String(waveId),
+				operator: operatorName,
+				operator_id: String(operatorId),
+				remark: 'app',
+				timestamp: timestamp,
+				sign_method: 'md5'
+			}
+			var sign = calculateSign(params)
+			params.sign = sign
+
+			try {
+				const res = await new Promise(function (resolve, reject) {
+					uni.request({
+						url: 'https://psi.api.buzhiyushu.cn/api/receiving/bind-wave',
+						method: 'POST',
+						header: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							'Authorization': 'Bearer ' + token
+						},
+						data: params,
+						success: function (r) { resolve(r) },
+						fail: function (e) { reject(e) }
+					})
+				})
+				console.log('【绑定波次】返回值:', res.statusCode, res.data)
+			} catch (e) {
+				console.warn('【绑定波次】请求失败:', e)
 			}
 		},
 
