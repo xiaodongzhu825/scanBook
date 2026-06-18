@@ -2095,7 +2095,9 @@ export default {
 				var pubTimeStr = this.printTime || ''
 				var pubTimestamp = '0'
 				if (pubTimeStr) {
-					var parts = pubTimeStr.split('-')
+					// 兼容 '1980/03' 和 '1980-03' 两种格式
+					var normalized = pubTimeStr.replace(/\//g, '-')
+					var parts = normalized.split('-')
 					if (parts.length >= 2) {
 						var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1)
 						var ts = Math.floor(d.getTime() / 1000)
@@ -2237,7 +2239,9 @@ export default {
 				var pubTimeStr = this.noIsbnPrintTime || ''
 				var pubTimestamp = '0'
 				if (pubTimeStr) {
-					var parts = pubTimeStr.split('-')
+					// 兼容 '1980/03' 和 '1980-03' 两种格式
+					var normalized = pubTimeStr.replace(/\//g, '-')
+					var parts = normalized.split('-')
 					if (parts.length >= 2) {
 						var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1)
 						var ts = Math.floor(d.getTime() / 1000)
