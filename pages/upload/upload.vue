@@ -1128,6 +1128,30 @@ export default {
 			if (result <= minPrice) return minPrice
 			return parseFloat(result.toFixed(2))
 		},
+		// ISBN - 核价商品的运费
+		referenceShippingFee() {
+			const sorted = this.sortedProductList
+			if (sorted.length === 0) return 0
+			if (this.priceMode === 'lowest') {
+				const idx = Math.min((Number(this.lowestRank) || 1) - 1, sorted.length - 1)
+				return parseFloat(sorted[idx].shippingFee) || 0
+			} else {
+				const count = Math.min(Number(this.averageCount) || 2, sorted.length)
+				return parseFloat(sorted[count - 1].shippingFee) || 0
+			}
+		},
+		// 无ISBN - 核价商品的运费
+		noIsbnReferenceShippingFee() {
+			const sorted = this.noIsbnSortedProductList
+			if (sorted.length === 0) return 0
+			if (this.priceMode === 'lowest') {
+				const idx = Math.min((Number(this.lowestRank) || 1) - 1, sorted.length - 1)
+				return parseFloat(sorted[idx].shippingFee) || 0
+			} else {
+				const count = Math.min(Number(this.averageCount) || 2, sorted.length)
+				return parseFloat(sorted[count - 1].shippingFee) || 0
+			}
+		},
 		sortedProductList() {
 			let list = [...this.productList]
 			// 筛选（精确匹配，同zhizhu）
@@ -2159,7 +2183,7 @@ export default {
 				var salePrice = this.currentTab === 'isbn'
 					? (this.price ? String(Math.round(parseFloat(this.price) * 100)) : '0')
 					: (this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '0')
-				var costPrice = String(Math.round(parseFloat(this.shippingFee || '0') * 100))
+				var costPrice = String(Math.round(parseFloat(this.referenceShippingFee || '0') * 100))
 				await this.callUpdatePriceApi(productId, salePrice, costPrice)
 				if (warehouseData && productId) {
 					await this.callWaveApi(warehouseData, productId)
@@ -2302,7 +2326,7 @@ export default {
 				}
 				// product/save 成功后设置售价
 				var salePrice = this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '0'
-				var costPrice = String(Math.round(parseFloat(this.shippingFee || '0') * 100))
+				var costPrice = String(Math.round(parseFloat(this.noIsbnReferenceShippingFee || '0') * 100))
 				await this.callUpdatePriceApi(productId, salePrice, costPrice)
 				if (this.noIsbnWarehouseData && productId) {
 					await this.callWaveApi(this.noIsbnWarehouseData, productId)
