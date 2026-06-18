@@ -2352,6 +2352,9 @@ export default {
 			}
 			var sign = calculateSign(params)
 			params.sign = sign
+			var saveUrl = 'https://psi.api.buzhiyushu.cn/api/product/save'
+			console.log('【保存商品】请求地址:', saveUrl)
+			console.log('【保存商品】请求参数:', params)
 
 			try {
 				const res = await new Promise(function (resolve, reject) {
