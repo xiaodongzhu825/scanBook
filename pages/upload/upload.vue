@@ -2407,7 +2407,7 @@ export default {
 		async callUpdatePriceApi(productId, salePrice, costPrice) {
 			var timestamp = String(Math.floor(Date.now() / 1000))
 			const token = uni.getStorageSync('token') || ''
-			var userId = uni.getStorageSync('userId') || ''
+			var userId = uni.getStorageSync('aboutId') || ''
 			const params = {
 				app_key: 'psi',
 				client_id: 'psi',
