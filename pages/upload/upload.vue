@@ -2155,6 +2155,12 @@ export default {
 					console.warn('【product/save】保存商品失败,跳过波次')
 					return
 				}
+				// product/save 成功后设置售价
+				var salePrice = this.currentTab === 'isbn'
+					? (this.price ? String(Math.round(parseFloat(this.price) * 100)) : '0')
+					: (this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '0')
+				var costPrice = String(Math.round(parseFloat(this.shippingFee || '0') * 100))
+				await this.callUpdatePriceApi(productId, salePrice, costPrice)
 				if (warehouseData && productId) {
 					await this.callWaveApi(warehouseData, productId)
 				} else {
@@ -2294,6 +2300,10 @@ export default {
 					console.warn('【product/save】保存商品失败,跳过波次')
 					return
 				}
+				// product/save 成功后设置售价
+				var salePrice = this.noIsbnPrice ? String(Math.round(parseFloat(this.noIsbnPrice) * 100)) : '0'
+				var costPrice = String(Math.round(parseFloat(this.shippingFee || '0') * 100))
+				await this.callUpdatePriceApi(productId, salePrice, costPrice)
 				if (this.noIsbnWarehouseData && productId) {
 					await this.callWaveApi(this.noIsbnWarehouseData, productId)
 				} else {
@@ -2390,6 +2400,60 @@ export default {
 				console.warn('【product/save】请求失败:', e)
 				uni.showToast({ title: '保存商品: 网络请求失败', icon: 'none', duration: 3000 })
 				return ''
+			}
+		},
+
+		// 设置售价（product/save 成功后调用）
+		async callUpdatePriceApi(productId, salePrice, costPrice) {
+			var timestamp = String(Math.floor(Date.now() / 1000))
+			const token = uni.getStorageSync('token') || ''
+			var userId = uni.getStorageSync('userId') || ''
+			const params = {
+				app_key: 'psi',
+				client_id: 'psi',
+				product_id: String(productId),
+				user_id: String(userId),
+				sale_price: String(salePrice),
+				cost: String(costPrice),
+				timestamp: timestamp,
+				sign_method: 'md5'
+			}
+			var sign = calculateSign(params)
+			params.sign = sign
+			var updateUrl = 'https://psi.api.buzhiyushu.cn/api/product/updatePrice'
+			console.log('【设置售价】请求地址:', updateUrl)
+			console.log('【设置售价】请求参数:', params)
+
+			try {
+				const res = await new Promise(function (resolve, reject) {
+					uni.request({
+						url: updateUrl,
+						method: 'POST',
+						header: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							'Authorization': 'Bearer ' + token
+						},
+						data: params,
+						success: function (r) { resolve(r) },
+						fail: function (e) { reject(e) }
+					})
+				})
+				console.log('【设置售价】返回值:', res.statusCode, res.data)
+
+				if (res.statusCode === 200 && res.data) {
+					var priceResp = res.data
+					if (typeof priceResp === 'string') {
+						try { priceResp = JSON.parse(priceResp) } catch (e) { priceResp = {} }
+					}
+					if (priceResp.code !== 200) {
+						uni.showToast({ title: '设置售价: ' + (priceResp.msg || '返回数据异常'), icon: 'none', duration: 3000 })
+					}
+				} else {
+					uni.showToast({ title: '设置售价: 请求失败 HTTP ' + res.statusCode, icon: 'none', duration: 3000 })
+				}
+			} catch (e) {
+				console.warn('【设置售价】请求失败:', e)
+				uni.showToast({ title: '设置售价: 网络请求失败', icon: 'none', duration: 3000 })
 			}
 		},
 
