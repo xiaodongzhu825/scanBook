@@ -2141,9 +2141,20 @@ export default {
 					throw new Error(respData && respData.msg || '上传失败')
 				}
 
-				// syncBook 成功后调用波次接口
+				// syncBook 成功后保存商品到 product 表，获取真实商品ID
 				var syncData = respData.data || {}
-				var productId = syncData.product_id || syncData.id || ''
+				var bookInfoId = syncData.id || ''
+				var barcode = this.currentTab === 'isbn' ? (this.isbn || '') : (this.noIsbnIsbn || this.noIsbnUnifyIsbn || '')
+				var productName = this.currentTab === 'isbn' ? (this.bookName || '') : (this.noIsbnBookName || '')
+				var appearanceValue = parseInt(this.currentTab === 'isbn' ? this.conditionValue : this.noIsbnConditionValue) || 0
+				var productPrice = this.currentTab === 'isbn'
+					? (this.fixPrice ? String(Math.round(parseFloat(this.fixPrice) * 100)) : '0')
+					: (this.noIsbnOriginalPrice ? String(Math.round(parseFloat(this.noIsbnOriginalPrice) * 100)) : '0')
+				var productId = await this.callProductSaveApi(productName, appearanceValue, barcode, productPrice, imageUrls)
+				if (!productId) {
+					console.warn('【product/save】保存商品失败,跳过波次')
+					return
+				}
 				if (warehouseData && productId) {
 					await this.callWaveApi(warehouseData, productId)
 				} else {
@@ -2272,9 +2283,17 @@ export default {
 					throw new Error(respData && respData.msg || '上传失败')
 				}
 
-				// syncBook 成功后调用波次接口
+				// syncBook 成功后保存商品到 product 表，获取真实商品ID
 				var syncData = respData.data || {}
-				var productId = syncData.product_id || syncData.id || ''
+				var barcode = this.noIsbnIsbn || this.noIsbnUnifyIsbn || ''
+				var productName = this.noIsbnBookName || ''
+				var appearanceValue = parseInt(this.noIsbnConditionValue) || 0
+				var productPrice = this.noIsbnOriginalPrice ? String(Math.round(parseFloat(this.noIsbnOriginalPrice) * 100)) : '0'
+				var productId = await this.callProductSaveApi(productName, appearanceValue, barcode, productPrice, imageUrls)
+				if (!productId) {
+					console.warn('【product/save】保存商品失败,跳过波次')
+					return
+				}
 				if (this.noIsbnWarehouseData && productId) {
 					await this.callWaveApi(this.noIsbnWarehouseData, productId)
 				} else {
@@ -2313,6 +2332,61 @@ export default {
 				uni.showToast({ title: e.message || '上传失败', icon: 'none', duration: 3000 })
 			} finally {
 				this.isSubmitting = false
+			}
+		},
+
+		// 保存商品到 product 表，返回商品ID
+		async callProductSaveApi(name, appearance, barcode, price, imageUrls) {
+			var timestamp = String(Math.floor(Date.now() / 1000))
+			const token = uni.getStorageSync('token') || ''
+			const params = {
+				app_key: 'psi',
+				client_id: 'psi',
+				name: name,
+				appearance: String(appearance),
+				barcode: barcode,
+				price: price,
+				'live_image[]': imageUrls.join(','),
+				timestamp: timestamp,
+				sign_method: 'md5'
+			}
+			var sign = calculateSign(params)
+			params.sign = sign
+
+			try {
+				const res = await new Promise(function (resolve, reject) {
+					uni.request({
+						url: 'https://psi.api.buzhiyushu.cn/api/product/save',
+						method: 'POST',
+						header: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							'Authorization': 'Bearer ' + token
+						},
+						data: params,
+						success: function (r) { resolve(r) },
+						fail: function (e) { reject(e) }
+					})
+				})
+				console.log('【product/save】返回值:', res.statusCode, res.data)
+
+				if (res.statusCode === 200 && res.data) {
+					var saveResp = res.data
+					if (typeof saveResp === 'string') {
+						try { saveResp = JSON.parse(saveResp) } catch (e) { saveResp = {} }
+					}
+					if (saveResp.code === 200 && saveResp.data && saveResp.data.id) {
+						return saveResp.data.id
+					} else {
+						uni.showToast({ title: '保存商品: ' + (saveResp.msg || '返回数据异常'), icon: 'none', duration: 3000 })
+					}
+				} else {
+					uni.showToast({ title: '保存商品: 请求失败 HTTP ' + res.statusCode, icon: 'none', duration: 3000 })
+				}
+				return ''
+			} catch (e) {
+				console.warn('【product/save】请求失败:', e)
+				uni.showToast({ title: '保存商品: 网络请求失败', icon: 'none', duration: 3000 })
+				return ''
 			}
 		},
 
