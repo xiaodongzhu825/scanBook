@@ -2066,7 +2066,7 @@ export default {
 			uni.showLoading({ title: '上传图片中...', mask: true })
 			try {
 				const photoList = this.currentTab === 'isbn' ? this.photoList : this.noIsbnPhotoList
-				const typeDir = this.currentTab === 'isbn' ? (this.isbn || 'UnknownIsbn') : this.noIsbnIsbn || this.noIsbnUnifyIsbn || 'NoIsbn'
+				const typeDir = this.currentTab === 'isbn' ? (this.isbn || 'UnknownIsbn') : this.getNoIsbnIsbnValue()
 				const imageUrls = await uploadImages(photoList, typeDir)
 
 				console.log('【上传】MinIO图片URL列表:', imageUrls)
@@ -2122,7 +2122,7 @@ export default {
 					page_count: '0',
 					word_count: '',
 					book_format: '',
-					'live_image[]': imageUrls.join(','),
+					'live_image': imageUrls.join(','),
 					timestamp: timestamp,
 					sign_method: 'md5'
 				}
@@ -2170,7 +2170,7 @@ export default {
 				// syncBook 成功后保存商品到 product 表，获取真实商品ID
 				var syncData = respData.data || {}
 				var bookInfoId = syncData.id || ''
-				var barcode = this.currentTab === 'isbn' ? (this.isbn || '') : (this.noIsbnIsbn || this.noIsbnUnifyIsbn || '')
+				var barcode = this.currentTab === 'isbn' ? (this.isbn || '') : this.getNoIsbnIsbnValue()
 				var productName = this.currentTab === 'isbn' ? (this.bookName || '') : (this.noIsbnBookName || '')
 				var appearanceValue = parseInt(this.currentTab === 'isbn' ? this.conditionValue : this.noIsbnConditionValue) || 0
 				var productPrice = this.currentTab === 'isbn'
@@ -2254,7 +2254,7 @@ export default {
 					client_id: 'psi',
 					fid: '0',
 					type: '4',
-					isbn: this.noIsbnIsbn || this.noIsbnUnifyIsbn || '',
+					isbn: this.getNoIsbnIsbnValue(),
 					f_isbn: '0',
 					book_name: this.noIsbnBookName || '',
 					f_book_name: '',
@@ -2266,7 +2266,7 @@ export default {
 					page_count: '0',
 					word_count: this.noIsbnWordCount || '',
 					book_format: '',
-					'live_image[]': imageUrls.join(','),
+					'live_image': imageUrls.join(','),
 					cat_id: JSON.stringify({
 						xian_yu_cat_id: '',
 						kong_fu_zi_cat_id: (this.noIsbnCategoryPathText || '').replace(/ \/ /g, '/'),
@@ -2320,7 +2320,7 @@ export default {
 
 				// syncBook 成功后保存商品到 product 表，获取真实商品ID
 				var syncData = respData.data || {}
-				var barcode = this.noIsbnIsbn || this.noIsbnUnifyIsbn || ''
+				var barcode = this.getNoIsbnIsbnValue()
 				var productName = this.noIsbnBookName || ''
 				var appearanceValue = parseInt(this.noIsbnConditionValue) || 0
 				var productPrice = this.noIsbnOriginalPrice ? String(Math.round(parseFloat(this.noIsbnOriginalPrice) * 100)) : '0'
@@ -3350,6 +3350,17 @@ export default {
 			} catch (e) {
 				console.error('加载定价配置失败:', e)
 			}
+		},
+
+		// 无ISBN上传 - 获取ISBN值，为空时生成13位随机数(678开头)
+		getNoIsbnIsbnValue() {
+			if (this.noIsbnIsbn) return this.noIsbnIsbn
+			if (this.noIsbnUnifyIsbn) return this.noIsbnUnifyIsbn
+			var rand = ''
+			for (var i = 0; i < 10; i++) {
+				rand += Math.floor(Math.random() * 10)
+			}
+			return '678' + rand
 		},
 
 		// 保存定价策略配置
