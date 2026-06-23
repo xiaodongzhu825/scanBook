@@ -3352,10 +3352,45 @@ export default {
 			}
 		},
 
-		// 无ISBN上传 - 获取ISBN值，为空时生成13位随机数(678开头)
+		// 无ISBN上传 - 获取ISBN值（按规则处理）
 		getNoIsbnIsbnValue() {
-			if (this.noIsbnIsbn) return this.noIsbnIsbn
+			var raw = (this.noIsbnIsbn || '').replace(/[^0-9]/g, '')
+
+			// 1. 13位、978/979开头 → 直接返回
+			if (raw.length === 13 && (raw.indexOf('978') === 0 || raw.indexOf('979') === 0)) {
+				return raw
+			}
+
+			// 2. 10位 → 换算成13位
+			if (raw.length === 10) {
+				return this.convertIsbn10To13(raw)
+			}
+
+			// 3. 统一书号
 			if (this.noIsbnUnifyIsbn) return this.noIsbnUnifyIsbn
+
+			// 4. 其他情况（为空或无法识别）→ 生成678开头的13位随机数
+			return this.generateRandomIsbn()
+		},
+
+		// 10位ISBN转13位
+		convertIsbn10To13(isbn10) {
+			var prefix = '978'
+			var first9 = isbn10.substring(0, 9)
+			var base12 = prefix + first9
+			// 重新计算第13位校验码
+			var sum = 0
+			for (var i = 0; i < 12; i++) {
+				var weight = (i % 2 === 0) ? 1 : 3
+				sum += parseInt(base12[i], 10) * weight
+			}
+			var remainder = sum % 10
+			var checkDigit = remainder === 0 ? 0 : 10 - remainder
+			return base12 + checkDigit
+		},
+
+		// 生成678开头的13位随机ISBN
+		generateRandomIsbn() {
 			var rand = ''
 			for (var i = 0; i < 10; i++) {
 				rand += Math.floor(Math.random() * 10)
