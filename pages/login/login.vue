@@ -8,13 +8,13 @@
 		<!-- Logo区域 -->
 		<view class="logo-area" v-if="!isCheckingLogin">
 			<image class="logo" src="/static/logo.png" mode="aspectFit"></image>
-			<text class="app-name">扫码图书</text>
+			<text class="app-name">书海寻源-入库</text>
 		</view>
 
 		<!-- 登录表单 -->
 		<view class="login-form" v-if="!isCheckingLogin">
 			<!-- 账号输入 -->
-			<view class="form-item">
+			<view class="form-item" style="position:relative;">
 				<view class="icon-box">
 					<view class="icon-user-head"></view>
 					<view class="icon-user-body"></view>
@@ -25,7 +25,21 @@
 					v-model="formData.account"
 					placeholder="请输入账号"
 					maxlength="20"
+					@focus="showAccountList = true"
+					@blur="onAccountBlur"
 				/>
+				<!-- 历史账号下拉 -->
+				<view class="account-dropdown" v-if="showAccountList && savedAccountList.length > 0">
+					<view
+						class="account-item"
+						v-for="(item, index) in savedAccountList"
+						:key="index"
+						@mousedown.prevent="selectSavedAccount(item)"
+					>
+						<text class="account-text">{{ item.account }}</text>
+						<text class="account-delete" @mousedown.stop @click.stop="deleteSavedAccount(index)">✕</text>
+					</view>
+				</view>
 			</view>
 
 			<!-- 密码输入 -->
@@ -161,7 +175,9 @@ export default {
 				agreed: false
 			},
 			showPassword: false,
-			showModal: false
+			showModal: false,
+			showAccountList: false,
+			savedAccountList: []
 		}
 	},
 
@@ -184,6 +200,7 @@ export default {
 		this.isCheckingLogin = false
 		// 页面加载时读取记住的账号密码
 		this.loadRememberedCredentials()
+		this.loadSavedAccounts()
 	},
 
 	methods: {
@@ -262,6 +279,9 @@ export default {
 						icon: 'success'
 					})
 
+					// 保存账号到历史列表
+					this.saveAccountToList(this.formData.account, this.formData.password)
+
 					// 跳转到功能入口页面
 					setTimeout(() => {
 						uni.redirectTo({
@@ -308,6 +328,63 @@ export default {
 				this.formData.password = uni.getStorageSync('remembered_password') || ''
 				this.formData.remember = true
 			}
+		},
+
+		// 加载历史登录账号列表
+		loadSavedAccounts() {
+			try {
+				const list = uni.getStorageSync('saved_account_list')
+				this.savedAccountList = Array.isArray(list) ? list : []
+			} catch (e) {
+				this.savedAccountList = []
+			}
+		},
+
+		// 保存账号到历史列表（最多5条，去重）
+		saveAccountToList(account, password) {
+			var list = [...this.savedAccountList]
+			// 去重（按账号去重）
+			var exists = false
+			for (var i = 0; i < list.length; i++) {
+				if (list[i].account === account) {
+					list[i].password = password
+					exists = true
+					break
+				}
+			}
+			if (!exists) {
+				list.unshift({ account: account, password: password })
+				if (list.length > 5) {
+					list = list.slice(0, 5)
+				}
+			}
+			this.savedAccountList = list
+			uni.setStorageSync('saved_account_list', list)
+		},
+
+		// 选择历史账号
+		selectSavedAccount(item) {
+			this.formData.account = item.account
+			this.formData.password = item.password
+			this.formData.remember = true
+			this.showAccountList = false
+		},
+
+		// 删除历史账号
+		deleteSavedAccount(index) {
+			var list = [...this.savedAccountList]
+			list.splice(index, 1)
+			this.savedAccountList = list
+			uni.setStorageSync('saved_account_list', list)
+		},
+
+		// 账号输入框失焦处理
+		onAccountBlur() {
+			// 延迟关闭，让点击事件先触发
+			var that = this
+			setTimeout(function() {
+				that.showAccountList = false
+			}, 150)
 		}
 	}
 }
@@ -670,5 +747,51 @@ export default {
 	color: #ffffff;
 	font-size: 28rpx;
 	border: none;
+}
+
+/* 历史账号下拉 */
+.account-dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	background: #ffffff;
+	border: 1rpx solid #e5e6eb;
+	border-radius: 8rpx;
+	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.1);
+	z-index: 10;
+	max-height: 300rpx;
+	overflow-y: auto;
+}
+
+.account-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 20rpx 24rpx;
+	border-bottom: 1rpx solid #f2f3f5;
+}
+
+.account-item:last-child {
+	border-bottom: none;
+}
+
+.account-text {
+	font-size: 28rpx;
+	color: #1d2129;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.account-delete {
+	font-size: 24rpx;
+	color: #c0c4cc;
+	padding: 8rpx 4rpx 8rpx 16rpx;
+}
+
+.account-delete:active {
+	color: #f56c6c;
 }
 </style>
