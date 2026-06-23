@@ -303,9 +303,12 @@ export function getLocationList(params = {}) {
  * 图书中心 - 根据ISBN查询图书信息
  */
 export function searchBookByIsbn(isbn) {
+	var requestUrl = 'https://book.center.yushutx.com/api/es/searchByISBN?isbn=' + isbn
+	console.log('【图书中心查询】请求地址:', requestUrl)
+	console.log('【图书中心查询】参数:', { isbn: isbn })
 	return new Promise((resolve, reject) => {
 		uni.request({
-			url: `https://book.center.yushutx.com/api/es/searchByISBN?isbn=${isbn}`,
+			url: requestUrl,
 			method: 'GET',
 			header: {
 				'Authorization': 'Basic ZWxhc3RpYzo1bVJESVVnNTJWQzBmcDE0bnctRg==',
@@ -313,6 +316,7 @@ export function searchBookByIsbn(isbn) {
 				'User-Agent': 'Apifox/1.0.0 (https://apifox.com)'
 			},
 			success: (res) => {
+				console.log('【图书中心查询】返回数据集:', JSON.stringify(res.data))
 				if (res.statusCode === 200 && res.data && res.data.data) {
 					resolve(res.data.data)
 				} else if (res.statusCode === 200 && res.data && res.data.code === 0 && res.data.data) {
