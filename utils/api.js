@@ -332,8 +332,32 @@ export function searchBookByIsbn(isbn) {
 // 导出 calculateSign 供组件按名导入
 export { calculateSign }
 
+/**
+ * 构建 form-urlencoded body，支持 live_image[] 以多个单独字段发送
+ * @param {Object} params - 已包含 sign 的 params 对象（live_image[] 为逗号拼接）
+ * @param {string[]} imageUrls - 图片 URL 数组
+ * @returns {string} form-urlencoded 字符串
+ */
+function buildFormBodyWithImages(params, imageUrls) {
+	var parts = []
+	for (var key in params) {
+		if (key === 'live_image[]') {
+			// 每个 URL 单独发送
+			for (var j = 0; j < imageUrls.length; j++) {
+				parts.push(encodeURIComponent('live_image[]') + '=' + encodeURIComponent(imageUrls[j]))
+			}
+		} else {
+			parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(params[key])))
+		}
+	}
+	return parts.join('&')
+}
+
+export { buildFormBodyWithImages }
+
 export default {
 	calculateSign,
+	buildFormBodyWithImages,
 	getWarehouseList,
 	getLocationList,
 	psiLogin,

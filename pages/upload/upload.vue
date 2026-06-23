@@ -890,7 +890,7 @@
 </template>
 
 <script>
-import { getWarehouseList, getLocationList, searchBookByIsbn, calculateSign } from '@/utils/api.js'
+import { getWarehouseList, getLocationList, searchBookByIsbn, calculateSign, buildFormBodyWithImages } from '@/utils/api.js'
 import { login as kongfzLogin, searchProducts, searchFacet } from '@/utils/kongfz.js'
 import { uploadImages } from '@/utils/minio.js'
 
@@ -2129,6 +2129,7 @@ export default {
 
 				var sign = calculateSign(params)
 				params.sign = sign
+				var formBody = buildFormBodyWithImages(params, imageUrls)
 
 				const apiUrl = 'https://psi.api.buzhiyushu.cn/api/syncBook'
 				const token = uni.getStorageSync('token') || ''
@@ -2143,7 +2144,7 @@ export default {
 							'Content-Type': 'application/x-www-form-urlencoded',
 							'Authorization': 'Bearer ' + token
 						},
-						data: params,
+						data: formBody,
 						success: function (r) { resolve(r) },
 						fail: function (e) { reject(e) }
 					})
@@ -2279,6 +2280,7 @@ export default {
 				// 计算签名（与仓库列表一致的签名算法）
 				var sign = calculateSign(params)
 				params.sign = sign
+				var formBody = buildFormBodyWithImages(params, imageUrls)
 
 				const apiUrl = 'https://psi.api.buzhiyushu.cn/api/syncBook'
 				console.log('【syncBook】请求地址:', apiUrl)
@@ -2292,7 +2294,7 @@ export default {
 							'Content-Type': 'application/x-www-form-urlencoded',
 							'Authorization': 'Bearer ' + token
 						},
-						data: params,
+						data: formBody,
 						success: function (r) { resolve(r) },
 						fail: function (e) { reject(e) }
 					})
@@ -2390,6 +2392,8 @@ export default {
 			}
 			var sign = calculateSign(params)
 			params.sign = sign
+			// 构建 form body（live_image[] 每个 URL 单独发送）
+			var formBody = buildFormBodyWithImages(params, imageUrls)
 			var saveUrl = 'https://psi.api.buzhiyushu.cn/api/product/save'
 			console.log('【保存商品】请求地址:', saveUrl)
 			console.log('【保存商品】请求参数:', params)
@@ -2403,7 +2407,7 @@ export default {
 							'Content-Type': 'application/x-www-form-urlencoded',
 							'Authorization': 'Bearer ' + token
 						},
-						data: params,
+						data: formBody,
 						success: function (r) { resolve(r) },
 						fail: function (e) { reject(e) }
 					})
