@@ -1,7 +1,35 @@
 <script>
+	
+	// #ifdef APP-PLUS
+	import checkUpdate from '@/uni_modules/uni-upgrade-center-app/utils/check-update';
+	// #endif
 	export default {
 		onLaunch: function() {
 			console.log('App Launch')
+
+			// 全局拦截器：API 返回无效令牌时跳转登录
+			uni.addInterceptor('request', {
+				success: function(res) {
+					if (res.data && typeof res.data === 'string') {
+						try {
+							var obj = JSON.parse(res.data)
+							if (obj && obj.error === '无效的认证令牌') {
+								uni.removeStorageSync('token')
+								uni.reLaunch({ url: '/pages/login/login' })
+							}
+						} catch (e) {}
+					} else if (res.data && res.data.error === '无效的认证令牌') {
+						uni.removeStorageSync('token')
+						uni.reLaunch({ url: '/pages/login/login' })
+					}
+				}
+			})
+
+			// #ifdef APP-PLUS
+			// 版本更新检测（放在 onLaunch 最前面，尽早执行）
+			console.log('[Upgrade] 开始检测更新...');
+			checkUpdate();
+			// #endif
 		},
 		onShow: function() {
 			console.log('App Show')
