@@ -3160,6 +3160,10 @@ export default {
 								}
 								this.noIsbnUnifyIsbn = bookCodeText
 							}
+							// ISBN 和书号都为空 → 生成 678 开头随机数显示在表单中
+							if (!this.noIsbnIsbn && !this.noIsbnUnifyIsbn) {
+								this.noIsbnIsbn = this.generateRandomIsbn()
+							}
 							if (texts.字数) this.noIsbnWordCount = this.processNoIsbnWordage(texts.字数)
 
 							uni.showToast({ title: '识别成功', icon: 'success' })
