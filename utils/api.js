@@ -333,18 +333,19 @@ export function searchBookByIsbn(isbn) {
 export { calculateSign }
 
 /**
- * 构建 form-urlencoded body，支持 live_image[] 以多个单独字段发送
+ * 构建 form-urlencoded body，支持图片以多个单独字段发送
  * @param {Object} params - 已包含 sign 的 params 对象（live_image[] 为逗号拼接）
  * @param {string[]} imageUrls - 图片 URL 数组
+ * @param {string} imageKey - 图片字段名（如 'live_image' 或 'live_image[]'）
  * @returns {string} form-urlencoded 字符串
  */
-function buildFormBodyWithImages(params, imageUrls) {
+function buildFormBodyWithImages(params, imageUrls, imageKey) {
 	var parts = []
 	for (var key in params) {
-		if (key === 'live_image[]') {
+		if (key === imageKey) {
 			// 每个 URL 单独发送
 			for (var j = 0; j < imageUrls.length; j++) {
-				parts.push(encodeURIComponent('live_image[]') + '=' + encodeURIComponent(imageUrls[j]))
+				parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(imageUrls[j]))
 			}
 		} else {
 			parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(params[key])))
