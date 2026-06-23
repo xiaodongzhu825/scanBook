@@ -3126,6 +3126,7 @@ export default {
 					uni.hideLoading()
 					try {
 						const ocrData = JSON.parse(res.data)
+						console.log('【OCR】原始返回:', JSON.stringify(ocrData))
 						if (ocrData && ocrData.texts) {
 							const texts = ocrData.texts
 							// 自动填充表单
@@ -3140,12 +3141,16 @@ export default {
 								const fmt = String(texts.开本).replace('开', '').trim()
 								this.noIsbnFormat = this.noIsbnFormatOptions.includes(fmt) ? fmt : fmt + '开'
 							}
-							if (texts.ISBN && /^\d/.test(texts.ISBN)) {
-								this.noIsbnIsbn = texts.ISBN
+							// 尝试多种字段名获取 ISBN（OCR 可能返回不同字段名）
+							var isbnText = texts.ISBN || texts.isbn || texts.isbn13 || texts.barcode || texts.条码 || ''
+							if (isbnText && /^\d/.test(isbnText)) {
+								this.noIsbnIsbn = isbnText
 								this.noIsbnUnifyIsbn = ''
 							}
-							if (texts.书号) {
-								const bookCode = texts.书号.replace(/\D/g, '')
+							// 书号（OCR 可能返回 书号 或 统一书号）
+							var bookCodeText = texts.书号 || texts.统一书号 || texts.bookcode || texts.unified_code || ''
+							if (bookCodeText) {
+								const bookCode = bookCodeText.replace(/\D/g, '')
 								if (bookCode.length === 13) {
 									this.noIsbnIsbn = bookCode
 								} else if (bookCode.length === 10 && /^\d{9}[\dXx]$/i.test(bookCode)) {
@@ -3153,7 +3158,7 @@ export default {
 								} else {
 									this.noIsbnIsbn = '678' + String(Date.now()).slice(-10)
 								}
-								this.noIsbnUnifyIsbn = texts.书号
+								this.noIsbnUnifyIsbn = bookCodeText
 							}
 							if (texts.字数) this.noIsbnWordCount = this.processNoIsbnWordage(texts.字数)
 
